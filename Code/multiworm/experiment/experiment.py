@@ -176,6 +176,9 @@ class Experiment(object):
                     'born', 'born_f', 'died', 'died_f', 'location'))
 
     def _blob_lines(self, bid):
+        """
+        Generator that yields all lines of data for blob id *bid*.
+        """
         fnum, offset = self.blobs_summary[bid]['location']
         with open(self.blobs_files[fnum], 'r') as f:
             f.seek(offset)
@@ -190,16 +193,28 @@ class Experiment(object):
         """
         return blob.parse(self._blob_lines(bid))
 
+    def _blob_gen(self):
+        """
+        Generator that parses and yields all the blobs in the summary data.
+        """
+        for bid in self.blobs_summary:
+            blob_info, blob_geometry = self.parse_blob(bid)
+            blob_info.update(blob_geometry)
+            print('Parsed: ', bid)
+            yield bid, blob_info
+
     def blob_gen(self):
         """
         Generator that produces filtered blobs.  Use to pipe the data to 
         another target.
         """
-        #for blob in blob = {}
-        Ellipsis
-        yield blob
+        for blob in multifilter(self.filters, self._blob_gen()):
+            yield blob
 
     def load_blobs(self):
         """
         Loads all blobs into memory
         """
+        for bid, blob in self.blob_gen():
+            self.blobs_data[bid] = blob
+            print('Approved: ', bid)

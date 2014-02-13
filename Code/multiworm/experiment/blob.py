@@ -38,7 +38,6 @@ def parse(lines):
         encoded per character, each one of up, down, left, or right (using 2
         bits).
     """
-
     blob_info = defaultdict(list, {})
     blob_geometry = defaultdict(list, {})
 
