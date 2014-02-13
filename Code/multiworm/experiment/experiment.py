@@ -7,9 +7,10 @@ from __future__ import (
         absolute_import, division, print_function, unicode_literals)
 from future.builtins import *
 
-import os
+import os.path
 from collections import defaultdict
 import glob
+import re
 
 from ..util import multifilter, alternate
 from . import blob
@@ -47,8 +48,8 @@ class Experiment(object):
     * Add desired filters
     * Load summary file
     * Store data by either:
-      * Using provided generator to pull good blobs and storing somewhere else
-        (e.g. a database)
+      * Using provided generator to pull good blobs and storing somewhere 
+        else (e.g. a database)
       * Call the loader function that pulls all blobs and stores them in 
         the local instance
     """
@@ -62,8 +63,22 @@ class Experiment(object):
             raise ValueError("Could not find summary file in target path.")
 
         self.basename = os.path.splitext(os.path.basename(self.summary))[0]
-        self.blob_files = sorted(glob.glob(data_path + '*.blobs'))
-        #self.image_files = glob.glob(data_path + '*.png')
+        self.blobs_files = sorted(glob.glob(os.path.join(
+                data_path, self.basename + '*.blobs')))
+        for i, fn in enumerate(self.blobs_files):
+            expected_fn = '{}_{:05}k.blobs'.format(self.basename, i)
+            if not fn.endswith(expected_fn):
+                raise ValueError("Experiment data missing a consecutive "
+                        "blobs file. ({})".format(expected_fn))
+
+        # Index found frames by experiment time in seconds
+        self.image_files = {}
+        image_re_mask = re.compile(re.escape(self.basename) 
+                + r'(?P<frame>[0-9]*)\.png$')
+        for image in glob.glob(os.path.join(data_path, self.basename + '*.png')):
+            match = image_re_mask.search(image)
+            frame_num = match.group('frame')
+            self.image_files[int('0' + frame_num) / 1000] = image
 
         # typical key/item example:
         # blob_id: {
@@ -111,30 +126,33 @@ class Experiment(object):
                 # store all blob locations and remove them from end of line.
                 splitline = line.split('%%%')
                 if len(splitline) == 2:
-                    line, file_stuff = splitline
-                    blobs, locations = parse_line_segment(file_stuff)
+                    line, file_offsets = splitline
+                    blobs, locations = parse_line_segment(file_offsets)
                     for b, l in zip(blobs, locations):
-                        blobs_summary[int(b)]['location'] = tuple(map(int, l.split('.')))
+                        b = int(b)
+                        blobs_summary[b]['location'] = tuple(
+                                map(int, l.split('.')))
 
                 # store all blob start and end times and remove them from end of line.
                 splitline = line.split('%%')
                 if len(splitline) == 2:
-                    line, blob_stuff = splitline
-                    lost_blobs, found_blobs = parse_line_segment(blob_stuff)
+                    line, blob_connections = splitline
                     frame, time = line.split()[:2]
                     frame = int(frame)
                     time = float(time)
-                    for b in lost_blobs:
-                        b = int(b)
-                        blobs_summary[b]['died'] = time
-                        blobs_summary[b]['died_f'] = frame
-                        active_blobs.discard(b)
-                    for b in found_blobs:
-                        b = int(b)
+
+                    lost_bids, found_bids = alternate(
+                            [int(i) for i in blob_connections.split()])
+                    for b in found_bids:
                         blobs_summary[b]['born'] = time
                         blobs_summary[b]['born_f'] = frame
                         active_blobs.add(b)
+                    for b in lost_bids:
+                        blobs_summary[b]['died'] = time
+                        blobs_summary[b]['died_f'] = frame
+                        active_blobs.discard(b)
 
+            # wrap up blob ends with the time
             for bid in active_blobs:
                 blobs_summary[bid]['died'] = time
                 blobs_summary[bid]['died_f'] = frame
@@ -157,14 +175,20 @@ class Experiment(object):
             assert set(v.keys()) == set((
                     'born', 'born_f', 'died', 'died_f', 'location'))
 
+    def _blob_lines(self, bid):
+        fnum, offset = self.blobs_summary[bid]['location']
+        with open(self.blobs_files[fnum], 'r') as f:
+            f.seek(offset)
+            assert next(f).strip() == '% {}'.format(bid)
+            for line in f:
+                if not line.startswith('%'):
+                    yield line
+
     def parse_blob(self, bid):
         """
         Parses the blob with id *bid*.
         """
-        fn, offset = self.blobs_summary[bid]['location']
-        # read in the relevant block
-        raw_data = ''
-        return blob.parse(raw_data)
+        return blob.parse(self._blob_lines(bid))
 
     def blob_gen(self):
         """
