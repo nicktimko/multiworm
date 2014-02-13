@@ -1,0 +1,22 @@
+# -*- coding: utf-8 -*-
+"""
+Generic Python manipulations.  No MWT things.
+"""
+from __future__ import (
+        absolute_import, division, print_function, unicode_literals)
+from future.builtins import *
+
+def multifilter(filters, iterable):
+    """
+    Like the builtin filter(), but takes an iterable of functions for the 
+    first argument.
+    """
+    for f in filters:
+        iterable = filter(f, iterable)
+    return iterable
+
+def alternate(seq):
+    """
+    Splits *seq*, placing alternating values into the returned iterables
+    """
+    return seq[::2], seq[1::2]

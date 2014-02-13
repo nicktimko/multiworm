@@ -1,0 +1,16 @@
+syntax: regexp
+## Ephermeral files
+~$                          # gedit
+py[co]$                     # compiled python files
+__pycache__/
+\.rej$                      # hg revert rejected changes
+\.orig$                     # hg revert backups
+\.profile$                  # profiling output files
+
+## Packaging
+\.egg-info/
+Code/dist/
+
+## Local
+\.sublime.*$                # Sublime Text project management
+venv[^/]*/                  # virtualenvs (any folder prefixed with "venv")
