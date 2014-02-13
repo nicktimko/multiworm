@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import sys
+import setuptools
 
-if not sys.hexversion >= 0x02070000:
-    raise RuntimeError("Python 2.7 or newer is required")
+if not sys.hexversion >= 0x02060000:
+    raise RuntimeError("Python 2.6 or newer is required")
 
 from setuptools import setup
 
@@ -12,14 +13,14 @@ setup(name='multiworm',
     author='Nick Timkovich',
     author_email='npt@u.northwestern.edu',
     url='https://bitbucket.org/nick_timkovich/multiworm',
-    packages=['multiworm'],
+    packages=setuptools.find_packages(),
     #scripts=['arpeggio'],
     classifiers=[
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'Intended Audience :: Science/Research',
     ],
     install_requires=[
-        'future==0.11.2'
+        'six>=1.5.2',
         #'numpy>=1.6.1',
         #'scipy>=0.11.0',
         #'matplotlib>=1.2.1',

@@ -1,6 +1,6 @@
 from __future__ import (
         absolute_import, division, print_function, unicode_literals)
-from future.builtins import *
+import six
 
 import sys
 import argparse
@@ -25,4 +25,8 @@ def main():
     print(len(plate.blobs_data))
 
 if __name__ == '__main__':
-    sys.exit(main())
+    import cProfile as profile
+    command = "main()"
+    profile.runctx(command, globals(), locals(), filename="tape-short10.profile.34_64")
+
+    sys.exit()

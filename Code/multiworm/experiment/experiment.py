@@ -5,7 +5,8 @@ Handles data from a Multi-Worm Tracker experiment
 """
 from __future__ import (
         absolute_import, division, print_function, unicode_literals)
-from future.builtins import *
+import six
+from six.moves import (zip, filter, map, reduce, input, range)
 
 import os.path
 from collections import defaultdict
@@ -130,8 +131,7 @@ class Experiment(object):
                     blobs, locations = parse_line_segment(file_offsets)
                     for b, l in zip(blobs, locations):
                         b = int(b)
-                        blobs_summary[b]['location'] = tuple(
-                                map(int, l.split('.')))
+                        blobs_summary[b]['location'] = tuple(int(x) for x in l.split('.'))
 
                 # store all blob start and end times and remove them from end of line.
                 splitline = line.split('%%')
@@ -167,7 +167,7 @@ class Experiment(object):
         self.blobs_summary = dict(
                 multifilter(
                     [req_location] + self.summary_filters, 
-                    blobs_summary.items()
+                    six.iteritems(blobs_summary)
                 )
             )
         
@@ -182,7 +182,7 @@ class Experiment(object):
         fnum, offset = self.blobs_summary[bid]['location']
         with open(self.blobs_files[fnum], 'r') as f:
             f.seek(offset)
-            assert next(f).strip() == '% {}'.format(bid)
+            assert six.next(f).rstrip() == '% {}'.format(bid)
             for line in f:
                 if not line.startswith('%'):
                     yield line
@@ -215,6 +215,9 @@ class Experiment(object):
         """
         Loads all blobs into memory
         """
+        i = 0
         for bid, blob in self.blob_gen():
             self.blobs_data[bid] = blob
             print('Approved: ', bid)
+            i += 1
+            if i >= 10: break

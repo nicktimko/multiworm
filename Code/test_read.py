@@ -1,6 +1,6 @@
 from __future__ import (
         absolute_import, division, print_function, unicode_literals)
-from future.builtins import *
+import six
 
 import sys
 import argparse
@@ -22,7 +22,7 @@ def main():
     plate.load_summary()
 
     print(len(plate.blobs_summary))
-    bid, v = next(iter(plate.blobs_summary.items()))
+    bid, v = six.next(six.iteritems(plate.blobs_summary))
     print(bid, v)
     # blob_file, offset = v['location']
     # print(plate.blobs_files[blob_file])
