@@ -27,6 +27,12 @@ from . import blob
 #         '',
 #     ])
 
+class MWTDataError(StandardError):
+    """
+    Generic Error class for something wrong with the MWT output data
+    """
+    pass
+
 def parse_line_segment(line_segment):
     # line segments ususally contain an unspecified number of paired values.
     # this parses the paired values and returns them as two lists, part_a and part_b        
@@ -55,31 +61,9 @@ class Experiment(object):
         the local instance
     """
     def __init__(self, data_path):
-        try:
-            summaries = glob.glob(os.path.join(data_path, '*.summary'))
-            if len(summaries) > 1:
-                raise ValueError("Multiple summary files in target path.")
-            self.summary = summaries[0]
-        except IndexError:
-            raise ValueError("Could not find summary file in target path.")
-
-        self.basename = os.path.splitext(os.path.basename(self.summary))[0]
-        self.blobs_files = sorted(glob.glob(os.path.join(
-                data_path, self.basename + '*.blobs')))
-        for i, fn in enumerate(self.blobs_files):
-            expected_fn = '{}_{:05}k.blobs'.format(self.basename, i)
-            if not fn.endswith(expected_fn):
-                raise ValueError("Experiment data missing a consecutive "
-                        "blobs file. ({})".format(expected_fn))
-
-        # Index found frames by experiment time in seconds
-        self.image_files = {}
-        image_re_mask = re.compile(re.escape(self.basename) 
-                + r'(?P<frame>[0-9]*)\.png$')
-        for image in glob.glob(os.path.join(data_path, self.basename + '*.png')):
-            match = image_re_mask.search(image)
-            frame_num = match.group('frame')
-            self.image_files[int('0' + frame_num) / 1000] = image
+        self.find_summary_file(data_path)
+        self.find_blobs_files(data_path)
+        self.find_images(data_path)
 
         # typical key/item example:
         # blob_id: {
@@ -96,10 +80,53 @@ class Experiment(object):
         #    'lifetime_f': life_in_frames, 
         #    ...
         # }
-        self.blobs_data = defaultdict(dict, {})
+        self.blobs_data = {}
         
         self.summary_filters = []
         self.filters = []
+
+        # Upper bound of how many blobs there will be (for array
+        # preallocation)
+        self.max_blobs = None
+
+        self.blobs_parsed = 0
+
+    def find_summary_file(self, data_path):
+        try:
+            summaries = glob.glob(os.path.join(data_path, '*.summary'))
+            if len(summaries) > 1:
+                raise MWTDataError("Multiple summary files in target path.")
+            self.summary = summaries[0]
+        except IndexError:
+            raise MWTDataError("Could not find summary file in target path.")
+
+        self.basename = os.path.splitext(os.path.basename(self.summary))[0]
+
+    def find_blobs_files(self, data_path):
+        """
+        Find blobs files and verify consecutiveness
+        """
+        self.blobs_files = sorted(glob.glob(os.path.join(
+                data_path, self.basename + '*.blobs')))
+        for i, fn in enumerate(self.blobs_files):
+            expected_fn = '{}_{:05}k.blobs'.format(self.basename, i)
+            if not fn.endswith(expected_fn):
+                raise MWTDataError("Experiment data missing a consecutive "
+                        "blobs file. ({})".format(expected_fn))
+
+    def find_images(self, data_path):
+        """
+        Find related images and store them indexed by seconds (and fractions 
+        thereof)
+        """
+        self.image_files = {}
+        image_re_mask = re.compile(re.escape(self.basename) 
+                + r'(?P<frame>[0-9]*)\.png$')
+        for image in glob.glob(os.path.join(data_path, self.basename + '*.png')):
+            match = image_re_mask.search(image)
+            frame_num = match.group('frame')
+            self.image_files[int('0' + frame_num) / 1000] = image
+
 
     def add_summary_filter(self, f):
         """
@@ -121,6 +148,8 @@ class Experiment(object):
 
     def load_summary(self):
         blobs_summary = defaultdict(dict, {})
+        # to verify there as many blobs files as the summary expects
+        max_fnum = -1
         with open(self.summary, 'r') as f:
             active_blobs = set()
             for line in f:
@@ -131,7 +160,9 @@ class Experiment(object):
                     blobs, locations = parse_line_segment(file_offsets)
                     for b, l in zip(blobs, locations):
                         b = int(b)
-                        blobs_summary[b]['location'] = tuple(int(x) for x in l.split('.'))
+                        fnum, offset = (int(x) for x in l.split('.'))
+                        blobs_summary[b]['location'] = fnum, offset
+                        max_fnum = max(max_fnum, fnum)
 
                 # store all blob start and end times and remove them from end of line.
                 splitline = line.split('%%')
@@ -160,17 +191,18 @@ class Experiment(object):
         # delete dummy blob id
         del blobs_summary[0]
 
-        # remove bad blobs that have no location specified
-        def req_location(item):
-            return 'location' in item[1]
-
         self.blobs_summary = dict(
                 multifilter(
-                    [req_location] + self.summary_filters, 
+                    [lambda it: 'location' in it[1]] + self.summary_filters, 
                     six.iteritems(blobs_summary)
                 )
             )
-        
+
+        self.max_blobs = len(self.blobs_summary)
+
+        if max_fnum + 1 > len(self.blobs_files):
+            raise MWTDataError("Summary file refers to missing blobs files.")
+
         for v in self.blobs_summary.values():
             assert set(v.keys()) == set((
                     'born', 'born_f', 'died', 'died_f', 'location'))
@@ -193,31 +225,31 @@ class Experiment(object):
         """
         return blob.parse(self._blob_lines(bid))
 
-    def _blob_gen(self):
+    def all_blobs(self):
         """
         Generator that parses and yields all the blobs in the summary data.
         """
         for bid in self.blobs_summary:
             blob_info, blob_geometry = self.parse_blob(bid)
             blob_info.update(blob_geometry)
-            print('Parsed: ', bid)
+
+            self.blobs_parsed += 1
             yield bid, blob_info
 
-    def blob_gen(self):
+    def good_blobs(self):
         """
         Generator that produces filtered blobs.  Use to pipe the data to 
         another target.
         """
-        for blob in multifilter(self.filters, self._blob_gen()):
+        for blob in multifilter(self.filters, self.all_blobs()):
             yield blob
 
     def load_blobs(self):
         """
         Loads all blobs into memory
         """
-        i = 0
-        for bid, blob in self.blob_gen():
+        for bid, blob in self.good_blobs():
             self.blobs_data[bid] = blob
-            print('Approved: ', bid)
-            i += 1
-            if i >= 10: break
+
+    def progress(self):
+        return self.blobs_parsed, self.max_blobs

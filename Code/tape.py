@@ -3,8 +3,11 @@ from __future__ import (
 import six
 
 import sys
+import itertools
 import argparse
+
 import multiworm
+import tapeworm
 
 TEST_DATA_SETS = {
     '%pics1': '/home/projects/worm_movement/Data/MWT_RawData/20130702_135704',
@@ -24,9 +27,24 @@ def main():
 
     print(len(plate.blobs_data))
 
+def tapetest():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('test_set')
+    args = parser.parse_args()
+
+    taper = tapeworm.Taper(TEST_DATA_SETS[args.test_set])
+
+    #blob_generator = 
+    #taper.plate.good_blobs = lambda: itertools.islice(taper.plate.good_blobs(), 4)
+
+    taper.process(show_progress=True)
+
 if __name__ == '__main__':
     import cProfile as profile
-    command = "main()"
-    profile.runctx(command, globals(), locals(), filename="tape-short10.profile.34_64")
+    #command = "main()"
+    command = "tapetest()"
+    profile.runctx(command, globals(), locals(), filename="tape.profile")
+    #main()
+    #tapetest()
 
     sys.exit()
