@@ -10,7 +10,9 @@ from six.moves import (zip, filter, map, reduce, input, range)
 
 from collections import defaultdict
 
-from ..util import alternate
+import numpy as np
+
+from ..util import alternate, dtype
 
 def parse(lines):
     """
@@ -40,7 +42,6 @@ def parse(lines):
         bits).
     """
     blob_info = defaultdict(list, {})
-    blob_geometry = defaultdict(list, {})
 
     for i, line in enumerate(lines):
         ld = line.split('%')
@@ -57,26 +58,102 @@ def parse(lines):
 
         # if there are geometry sections, parse them too.
         if len(ld) == 4:
-            blob_geometry['midline'].append(tuple(zip(*alternate([int(x) for x in ld[1].split()]))))
+            blob_info['midline'].append(tuple(zip(*alternate([int(x) for x in ld[1].split()]))))
 
             # contour data
             ldc = ld[3].split()
-            blob_geometry['contour_start'].append((int(ldc[0]), int(ldc[1])))
-            blob_geometry['contour_encode_len'].append(int(ldc[2]))
-            blob_geometry['contour_encoded'].append(ldc[3])
+            blob_info['contour_start'].append((int(ldc[0]), int(ldc[1])))
+            blob_info['contour_encode_len'].append(int(ldc[2]))
+            blob_info['contour_encoded'].append(ldc[3])
         else:
-            blob_geometry['midline'].append(None)
-            blob_geometry['contour_start'].append((0, 0))
-            blob_geometry['contour_encode_len'].append(None)
-            blob_geometry['contour_encoded'].append(None)
+            blob_info['midline'].append(None)
+            blob_info['contour_start'].append((0, 0))
+            blob_info['contour_encode_len'].append(None)
+            blob_info['contour_encoded'].append(None)
 
     # prevent referencing non-existant fields
     blob_info.default_factory = None
-    blob_geometry.default_factory = None
 
     # verify everything is the same length
     frames = len(blob_info['frame'])
     assert all(len(v) == frames for v in blob_info.values())
-    assert all(len(v) == frames for v in blob_geometry.values())
 
-    return blob_info, blob_geometry
+    return blob_info
+
+INFO_FIELDS = dtype([
+        ('frame', 'int32'),
+        ('time', 'float'),
+        ('centroid', '2float'),
+        ('area', 'int32'),
+        ('std_vector', '2float'),
+        ('std_ortho', 'float'),
+        ('size', '2float'),
+    ])
+GEO_FIELDS = dtype([
+        ('midline', '(11, 2)int8'),
+        ('contour_start', '2int32'),
+        ('contour_encode_len', 'int32'),
+        ('contour_encoded', 'object'),
+    ])
+
+def parse_np(lines):
+    """
+    Consumes a provided *payload* string and generates two arrays for each
+    block of data in it. The first contains the basic information,
+    guaranteed in each frame.  Column fields in first array:
+
+      * `frame`: Video frame number
+      * `time`: Real time since beginning of experiment
+      * `centroid`: Blob center of "mass"
+      * `area`: Area of blob
+      * `std_vector`:
+      * `std_ortho`:
+      * `size`: Rectangular size of the blob as determined by MWT
+
+    The other array contains geometry information, and can come in and out
+    beween frames.  If missing, `contour_encode_len` will equal 0.  Column
+    fields include:
+
+      * `midline`: 11 coordinates relative to the position of the centroid
+        that represent MWT's initial guess at the worm shape
+      * `contour_start`: Start coordinates of the encoded contour.
+      * `contour_encode_len`: Length of the encoded contour.  Required due to
+        the last encoded character being ambiguous as to how many points it
+        actually encodes.
+      * `contour_encoded`: the base64esque encoded outline.  Three steps are
+        encoded per character, each one of up, down, left, or right (using 2
+        bits).
+
+    """
+    lines = list(lines)
+    blob_info = np.zeros(len(lines), dtype=INFO_FIELDS + GEO_FIELDS)
+
+    for i, line in enumerate(lines):
+        ld = line.split('%')
+
+        # parse the first block with the generic stats
+        lda = ld[0].split()
+        blob_info[i]['frame'] = lda[0]
+        blob_info[i]['time'] = lda[1]
+        blob_info[i]['centroid'][0] = lda[2]
+        blob_info[i]['centroid'][1] = lda[3]
+        blob_info[i]['area'] = lda[4]
+        blob_info[i]['std_vector'][0] = lda[5]
+        blob_info[i]['std_vector'][1] = lda[6]
+        blob_info[i]['std_ortho'] = lda[7]
+        blob_info[i]['size'][0] = lda[8]
+        blob_info[i]['size'][1] = lda[9]
+
+        # if there are geometry sections, parse them too.
+        if len(ld) == 4:
+            # second block contains 11 x-y coordinates
+            blob_info[i]['midline'][:] = np.array(
+                    ld[1].split(), dtype='int8').reshape(11, 2)
+            # third has contour information
+            ldc = ld[3].split()
+            blob_info[i]['contour_start'][0] = ldc[0]
+            blob_info[i]['contour_start'][1] = ldc[1]
+            blob_info[i]['contour_encode_len'] = ldc[2]
+            blob_info[i]['contour_encoded'] = ldc[3]
+
+    return blob_info

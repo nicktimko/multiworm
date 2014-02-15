@@ -21,3 +21,14 @@ def alternate(seq):
     Splits *seq*, placing alternating values into the returned iterables
     """
     return seq[::2], seq[1::2]
+
+def dtype(spec):
+    """
+    Allow Python 2/3 compatibility with Numpy's dtype argument.
+
+    Relevant issue: https://github.com/numpy/numpy/issues/2407
+    """
+    if six.PY2:
+        return [(str(n), str(t) if type(t)==type else t) for n, t in spec]
+    else:
+        return spec

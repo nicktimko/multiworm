@@ -13,7 +13,9 @@ from collections import defaultdict
 import glob
 import re
 
-from ..util import multifilter, alternate
+import numpy as np
+
+from ..util import multifilter, alternate, dtype
 from . import blob
 
 # BlobSummary = collections.namedtuple('BlobSummary', [
@@ -42,6 +44,15 @@ def parse_line_segment(line_segment):
 
     return alternate(elements)
 
+SUMMARY_FIELDS = dtype([
+        ('bid', 'int32'),
+        ('file_no', 'int16'),
+        ('offset', 'int32'),
+        ('born', 'float64'),
+        ('born_f', 'int32'),
+        ('died', 'float64'),
+        ('died_f', 'int32'),
+    ])
 
 class Experiment(object):
     """
@@ -65,22 +76,7 @@ class Experiment(object):
         self.find_blobs_files(data_path)
         self.find_images(data_path)
 
-        # typical key/item example:
-        # blob_id: {
-        #    'location': (file_no, offset),
-        #    'born': time_found, 
-        #    'born_f': frame_found, 
-        #    'died': time_lost, 
-        #    'died_f': frame_lost, 
-        # }
-        self.blobs_summary = {}
-
-        # typical key/item example:
-        # blob_id: {
-        #    'lifetime_f': life_in_frames, 
-        #    ...
-        # }
-        #self.blobs_data = {}
+        self.blobs_summary = None
         
         self.summary_filters = []
         self.filters = []
@@ -127,7 +123,6 @@ class Experiment(object):
             frame_num = match.group('frame')
             self.image_files[int('0' + frame_num) / 1000] = image
 
-
     def add_summary_filter(self, f):
         """
         Add a function that can be passed a blobs_summary item and returns 
@@ -149,7 +144,6 @@ class Experiment(object):
     def load_summary(self):
         blobs_summary = defaultdict(dict, {})
         # to verify there as many blobs files as the summary expects
-        max_fnum = -1
         with open(self.summary, 'r') as f:
             active_blobs = set()
             for line in f:
@@ -162,7 +156,6 @@ class Experiment(object):
                         b = int(b)
                         fnum, offset = (int(x) for x in l.split('.'))
                         blobs_summary[b]['location'] = fnum, offset
-                        max_fnum = max(max_fnum, fnum)
 
                 # store all blob start and end times and remove them from end of line.
                 splitline = line.split('%%')
@@ -191,27 +184,38 @@ class Experiment(object):
         # delete dummy blob id
         del blobs_summary[0]
 
-        self.blobs_summary = dict(
+        blobs_summary = dict(
                 multifilter(
                     [lambda it: 'location' in it[1]] + self.summary_filters, 
                     six.iteritems(blobs_summary)
                 )
             )
 
+        # convert to Numpy Structured Array
+        self.blobs_summary = np.zeros((len(blobs_summary),), dtype=SUMMARY_FIELDS)
+        for i, blob in enumerate(six.iteritems(blobs_summary)):
+            bid, bdata = blob
+            self.blobs_summary[i] = (bid, 
+                    bdata['location'][0], bdata['location'][1],
+                    bdata['born'], bdata['born_f'], 
+                    bdata['died'], bdata['died_f'])
+        # mapping for blob IDs:
+        self._bsidm = dict(zip(self.blobs_summary['bid'], 
+                range(len(self.blobs_summary))))
+
         self.max_blobs = len(self.blobs_summary)
 
-        if max_fnum + 1 > len(self.blobs_files):
+        if self.blobs_summary['file_no'].max() + 1 > len(self.blobs_files):
             raise MWTDataError("Summary file refers to missing blobs files.")
 
-        for v in self.blobs_summary.values():
-            assert set(v.keys()) == set((
-                    'born', 'born_f', 'died', 'died_f', 'location'))
+        import code
+        #code.interact(local=locals())
 
     def _blob_lines(self, bid):
         """
         Generator that yields all lines of data for blob id *bid*.
         """
-        fnum, offset = self.blobs_summary[bid]['location']
+        fnum, offset = self.blobs_summary[['file_no', 'offset']][self._bsidm[bid]]
         with open(self.blobs_files[fnum], 'r') as f:
             f.seek(offset)
             assert six.next(f).rstrip() == '% {}'.format(bid)
@@ -229,12 +233,10 @@ class Experiment(object):
         """
         Generator that parses and yields all the blobs in the summary data.
         """
-        for bid in self.blobs_summary:
-            blob_info, blob_geometry = self.parse_blob(bid)
-            blob_info.update(blob_geometry)
-            blob_geometry = None # free mem
-
+        for bid in self.blobs_summary['bid']:
+            blob_info = self.parse_blob(bid)
             self.blobs_parsed += 1
+
             yield bid, blob_info
             bid, blob_info = None, None # free mem
 

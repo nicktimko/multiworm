@@ -32,16 +32,18 @@ def _midline_length(points):
         a = b
     return dist
 
-def relative_move_minimum(threshold, subsample=1):
+def relative_move_minimum(threshold):
     """
     Returns a function that filters parsed blob data by a minimum amount 
     of movement.  The sum of the blob's centroid bounding box must exceed 
     *threshold* times the average length of the midline.
     """
     def f(blob):
-        xcent, ycent = tuple(zip(*blob['centroid'][::subsample]))
+        xcent, ycent = tuple(zip(*blob['centroid']))
         move_px = (max(xcent) - min(xcent)) + (max(ycent) - min(ycent))
-        size_px = sum(_midline_length(pts) for pts in blob['midline'] if pts)/len(blob['midline'])
+        size_px = (
+            sum(_midline_length(p) for p in blob['midline'] if p)
+            / len(blob['midline']))
         return move_px >= size_px * threshold
 
     return f

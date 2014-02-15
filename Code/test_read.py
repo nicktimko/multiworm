@@ -6,6 +6,7 @@ import sys
 import itertools
 import argparse
 import gc
+import time
 
 import multiworm
 
@@ -48,9 +49,13 @@ def main():
     plate.load_summary()
 
     ids = []
+    t = time.time()
     for blob in plate.good_blobs():
+        now = time.time()
+        t, tdelta = now, now - t
+
         bid, bdata = blob
-        print(memprint(), bid)
+        print(memprint(), 'ID: {:5d}, t: {:7.1f} ms'.format(bid, tdelta * 1000))
         ids.append(bid)
         blob, bdata = None, None
 
