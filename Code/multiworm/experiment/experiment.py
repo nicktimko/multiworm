@@ -27,7 +27,7 @@ from . import blob
 #         '',
 #     ])
 
-class MWTDataError(StandardError):
+class MWTDataError(Exception):
     """
     Generic Error class for something wrong with the MWT output data
     """
@@ -80,7 +80,7 @@ class Experiment(object):
         #    'lifetime_f': life_in_frames, 
         #    ...
         # }
-        self.blobs_data = {}
+        #self.blobs_data = {}
         
         self.summary_filters = []
         self.filters = []
@@ -232,9 +232,11 @@ class Experiment(object):
         for bid in self.blobs_summary:
             blob_info, blob_geometry = self.parse_blob(bid)
             blob_info.update(blob_geometry)
+            blob_geometry = None # free mem
 
             self.blobs_parsed += 1
             yield bid, blob_info
+            bid, blob_info = None, None # free mem
 
     def good_blobs(self):
         """
@@ -243,10 +245,12 @@ class Experiment(object):
         """
         for blob in multifilter(self.filters, self.all_blobs()):
             yield blob
+            blob = None # free mem
 
     def load_blobs(self):
         """
-        Loads all blobs into memory
+        Loads all blobs into memory.  Probably will crash for a typical 
+        experiment if not a 64-bit OS with a healthy amount of RAM.
         """
         for bid, blob in self.good_blobs():
             self.blobs_data[bid] = blob

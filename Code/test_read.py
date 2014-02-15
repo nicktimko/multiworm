@@ -3,14 +3,40 @@ from __future__ import (
 import six
 
 import sys
+import itertools
 import argparse
+import gc
+
 import multiworm
-import multiworm.experiment.blob as meb
 
 TEST_DATA_SETS = {
     '%pics1': '/home/projects/worm_movement/Data/MWT_RawData/20130702_135704',
     '%pics2': '/home/projects/worm_movement/Data/MWT_RawData/20130702_135652',
 }
+
+def memory_usage():
+    """Memory usage of the current process in kilobytes."""
+    status = None
+    result = {'peak': 0, 'rss': 0}
+    try:
+        # This will only work on systems with a /proc file system
+        # (like Linux).
+        status = open('/proc/self/status')
+        for line in status:
+            parts = line.split()
+            key = parts[0][2:-1].lower()
+            if key in result:
+                result[key] = int(parts[1])
+    finally:
+        if status is not None:
+            status.close()
+    return result
+
+def memprint():
+    m = memory_usage()
+    peak = m['peak']/1024
+    rss = m['rss']/1024
+    return 'Peak: {:6.1f} MB, Current: {:6.1f} MB'.format(peak, rss)
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -18,17 +44,17 @@ def main():
     args = parser.parse_args()
 
     plate = multiworm.Experiment(TEST_DATA_SETS[args.test_set])
-    #plate.add_summary_filter(multiworm.filters.minimum_time(120))
+    plate.add_summary_filter(multiworm.filters.lifetime_minimum(120))
     plate.load_summary()
 
-    print(len(plate.blobs_summary))
-    bid, v = six.next(six.iteritems(plate.blobs_summary))
-    print(bid, v)
-    # blob_file, offset = v['location']
-    # print(plate.blobs_files[blob_file])
-    #plate.parse_blob(bid)
-    print(plate.parse_blob(1187))
+    ids = []
+    for blob in plate.good_blobs():
+        bid, bdata = blob
+        print(memprint(), bid)
+        ids.append(bid)
+        blob, bdata = None, None
 
+    print(ids)
 
 if __name__ == '__main__':
     sys.exit(main())
