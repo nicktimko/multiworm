@@ -11,13 +11,14 @@ from six.moves import (zip, filter, map, reduce, input, range)
 
 import math
 
-def lifetime_minimum(threshold):
+def summary_lifetime_minimum(threshold):
     """
     Returns a function that filters summary blob data by a minimum time, 
     *threshold*.
     """
-    def f(blob):
-        return blob['died'] - blob['born'] >= threshold
+    def f(summary_data):
+        lifetimes = summary_data['died'] - summary_data['born']
+        return summary_data[lifetimes >= threshold]
     return f
 
 def _midline_length(points):

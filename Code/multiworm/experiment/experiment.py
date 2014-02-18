@@ -15,19 +15,8 @@ import re
 
 import numpy as np
 
-from ..util import multifilter, alternate, dtype
-from . import blob
-
-# BlobSummary = collections.namedtuple('BlobSummary', [
-#         'location',
-#         'from_id',
-#         'to_id',
-#         'lifetime',
-#         'lifetime_f',
-#     ])
-# BlobData = collections.namedtuple('BlobData', [
-#         '',
-#     ])
+from . import blob, summary
+from ..util import multifilter, multifilter_block
 
 class MWTDataError(Exception):
     """
@@ -35,24 +24,6 @@ class MWTDataError(Exception):
     """
     pass
 
-def parse_line_segment(line_segment):
-    # line segments ususally contain an unspecified number of paired values.
-    # this parses the paired values and returns them as two lists, part_a and part_b        
-    elements = line_segment.split()
-    if len(elements) % 2:
-        raise ValueError('Odd number of elements when split.')
-
-    return alternate(elements)
-
-SUMMARY_FIELDS = dtype([
-        ('bid', 'int32'),
-        ('file_no', 'int16'),
-        ('offset', 'int32'),
-        ('born', 'float64'),
-        ('born_f', 'int32'),
-        ('died', 'float64'),
-        ('died_f', 'int32'),
-    ])
 
 class Experiment(object):
     """
@@ -88,6 +59,9 @@ class Experiment(object):
         self.blobs_parsed = 0
 
     def find_summary_file(self, data_path):
+        """
+        Find blobs files and verify uniqueness
+        """
         try:
             summaries = glob.glob(os.path.join(data_path, '*.summary'))
             if len(summaries) > 1:
@@ -103,7 +77,7 @@ class Experiment(object):
         Find blobs files and verify consecutiveness
         """
         self.blobs_files = sorted(glob.glob(os.path.join(
-                data_path, self.basename + '*.blobs')))
+                data_path, self.basename + '_?????k.blobs')))
         for i, fn in enumerate(self.blobs_files):
             expected_fn = '{}_{:05}k.blobs'.format(self.basename, i)
             if not fn.endswith(expected_fn):
@@ -128,9 +102,7 @@ class Experiment(object):
         Add a function that can be passed a blobs_summary item and returns 
         whether or not it should be kept.
         """
-        # The item (key/value pair) is passed, but the filter should only
-        # bother with the value.
-        self.summary_filters.append(lambda item: f(item[1]))
+        self.summary_filters.append(f)
 
     def add_filter(self, f):
         """
@@ -142,108 +114,49 @@ class Experiment(object):
         self.filters.append(lambda item: f(item[1]))
 
     def load_summary(self):
-        blobs_summary = defaultdict(dict, {})
-        # to verify there as many blobs files as the summary expects
-        with open(self.summary, 'r') as f:
-            active_blobs = set()
-            for line in f:
-                # store all blob locations and remove them from end of line.
-                splitline = line.split('%%%')
-                if len(splitline) == 2:
-                    line, file_offsets = splitline
-                    blobs, locations = parse_line_segment(file_offsets)
-                    for b, l in zip(blobs, locations):
-                        b = int(b)
-                        fnum, offset = (int(x) for x in l.split('.'))
-                        blobs_summary[b]['location'] = fnum, offset
-
-                # store all blob start and end times and remove them from end of line.
-                splitline = line.split('%%')
-                if len(splitline) == 2:
-                    line, blob_connections = splitline
-                    frame, time = line.split()[:2]
-                    frame = int(frame)
-                    time = float(time)
-
-                    lost_bids, found_bids = alternate(
-                            [int(i) for i in blob_connections.split()])
-                    for b in found_bids:
-                        blobs_summary[b]['born'] = time
-                        blobs_summary[b]['born_f'] = frame
-                        active_blobs.add(b)
-                    for b in lost_bids:
-                        blobs_summary[b]['died'] = time
-                        blobs_summary[b]['died_f'] = frame
-                        active_blobs.discard(b)
-
-            # wrap up blob ends with the time
-            for bid in active_blobs:
-                blobs_summary[bid]['died'] = time
-                blobs_summary[bid]['died_f'] = frame
-
-        # delete dummy blob id
-        del blobs_summary[0]
-
-        blobs_summary = dict(
-                multifilter(
-                    [lambda it: 'location' in it[1]] + self.summary_filters, 
-                    six.iteritems(blobs_summary)
-                )
-            )
-
-        # convert to Numpy Structured Array
-        self.blobs_summary = np.zeros((len(blobs_summary),), dtype=SUMMARY_FIELDS)
-        for i, blob in enumerate(six.iteritems(blobs_summary)):
-            bid, bdata = blob
-            self.blobs_summary[i] = (bid, 
-                    bdata['location'][0], bdata['location'][1],
-                    bdata['born'], bdata['born_f'], 
-                    bdata['died'], bdata['died_f'])
-        # mapping for blob IDs:
-        self._bsidm = dict(zip(self.blobs_summary['bid'], 
-                range(len(self.blobs_summary))))
-
-        self.max_blobs = len(self.blobs_summary)
-
-        if self.blobs_summary['file_no'].max() + 1 > len(self.blobs_files):
+        bs = summary.parse(self.summary)
+        if bs['file_no'].max() + 1 > len(self.blobs_files):
             raise MWTDataError("Summary file refers to missing blobs files.")
 
-        import code
-        #code.interact(local=locals())
+        # filter and create blob id mapping 
+        self.blobs_summary = multifilter_block(self.summary_filters, bs)
+        self.bs_mapping = summary.make_mapping(self.blobs_summary)
+
+        # the maximum number of blobs we'll ever need to deal with
+        self.max_blobs = len(self.blobs_summary)
 
     def _blob_lines(self, bid):
         """
         Generator that yields all lines of data for blob id *bid*.
         """
-        fnum, offset = self.blobs_summary[['file_no', 'offset']][self._bsidm[bid]]
-        with open(self.blobs_files[fnum], 'r') as f:
+        file_no, offset = self.blobs_summary[['file_no', 'offset']][self.bs_mapping[bid]]
+        with open(self.blobs_files[file_no], 'r') as f:
             f.seek(offset)
-            assert six.next(f).rstrip() == '% {}'.format(bid)
+            if six.next(f).rstrip() != '% {}'.format(bid):
+                raise MWTDataError("File number/offset for blob {} was "
+                        "incorrect.".format(bid))
             for line in f:
-                if not line.startswith('%'):
+                if line[0] != '%':
                     yield line
 
     def parse_blob(self, bid):
         """
         Parses the blob with id *bid*.
         """
-        return blob.parse(self._blob_lines(bid))
+        return blob.parse_record(self._blob_lines(bid))
 
     def all_blobs(self):
         """
         Generator that parses and yields all the blobs in the summary data.
         """
         for bid in self.blobs_summary['bid']:
-            blob_info = self.parse_blob(bid)
+            yield bid, self.parse_blob(bid)
             self.blobs_parsed += 1
-
-            yield bid, blob_info
-            bid, blob_info = None, None # free mem
 
     def good_blobs(self):
         """
-        Generator that produces filtered blobs.  Use to pipe the data to 
-        another target.
+        Generator that produces filtered blobs.  You could route the output 
+        to a database, memory, or whereever.
         """
         for blob in multifilter(self.filters, self.all_blobs()):
             yield blob

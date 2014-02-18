@@ -71,7 +71,7 @@ class Taper(object):
     def _allocate_zeros(self, width, dtype=None):
         return np.zeros((self.plate.max_blobs, width), dtype=dtype)
 
-    def process(self, show_progress=False):
+    def load_data(self, show_progress=False):
         self.plate.load_summary()
         self.starts = self._allocate_zeros(4, dtype='int32')
         self.ends = self._allocate_zeros(4, dtype='int32')
@@ -100,3 +100,5 @@ class Taper(object):
         self.starts.resize(i + 1, 4)
         self.ends.resize(i + 1, 4)
         self.displacements.resize(i + 1, self.horizon_frames)
+
+    def generate_distribution

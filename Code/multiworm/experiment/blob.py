@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Load data from a Multi-Worm Tracker experiment
+MWT blob file manipulations
 """
 from __future__ import (
         absolute_import, division, print_function, unicode_literals)
@@ -14,7 +14,7 @@ import numpy as np
 
 from ..util import alternate, dtype
 
-def parse(lines):
+def parse_record(lines):
     """
     Consumes a provided *lines* iterable and generates two dictionaries; the 
     first containing the basic information, packaged in lists with keys:

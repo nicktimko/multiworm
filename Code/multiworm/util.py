@@ -16,6 +16,13 @@ def multifilter(filters, iterable):
         iterable = filter(f, iterable)
     return iterable
 
+def multifilter_block(filters, data):
+    """
+    Like multifilter(), but filters the input *data* through all *filters* 
+    en masse.
+    """
+    return reduce(lambda x, f: f(x), filters, data)
+
 def alternate(seq):
     """
     Splits *seq*, placing alternating values into the returned iterables

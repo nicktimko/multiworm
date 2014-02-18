@@ -20,7 +20,7 @@ def main():
     args = parser.parse_args()
 
     plate = multiworm.Experiment(TEST_DATA_SETS[args.test_set])
-    plate.add_summary_filter(multiworm.filters.lifetime_minimum(120))
+    plate.add_summary_filter(multiworm.filters.summary_lifetime_minimum(120))
     plate.load_summary()
     plate.add_filter(multiworm.filters.relative_move_minimum(2))
     plate.load_blobs()
