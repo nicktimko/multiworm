@@ -39,3 +39,14 @@ def dtype(spec):
         return [(str(n), str(t) if type(t)==type else t) for n, t in spec]
     else:
         return spec
+
+def enumerate(sequence, start=0):
+    """
+    A version of the built-in enumerate that doesn't hold item references, 
+    permitting up to 2x lower memory use.
+    """
+    n = start
+    sequence = iter(sequence)
+    while True:
+        yield n, six.next(sequence)
+        n += 1
