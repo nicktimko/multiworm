@@ -15,6 +15,8 @@ import itertools
 import numpy as np
 
 import multiworm
+enumerate = multiworm.util.enumerate
+from . import scoring
 
 FRAME_RATE = 14
 
@@ -77,9 +79,10 @@ class Taper(object):
         self.ends = self._allocate_zeros(4, dtype='int32')
         self.displacements = self._allocate_zeros(self.horizon_frames)
 
-        for i, blob in enumerate(self.plate.good_blobs()):
+        for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 5)):
             bid, bdata = blob
             bdata = self._condense_blob(bdata)
+            blob = None
 
             self.starts[i] = (bid,) + bdata['born_at'] + (bdata['born_f'],)
             self.ends[i] = (bid,) + bdata['died_at'] + (bdata['died_f'],)
@@ -100,3 +103,5 @@ class Taper(object):
         self.starts.resize(i + 1, 4)
         self.ends.resize(i + 1, 4)
         self.displacements.resize(i + 1, self.horizon_frames)
+
+        scorer = scoring.DisplacementScorer(self.displacements)

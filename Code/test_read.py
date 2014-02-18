@@ -50,7 +50,7 @@ def main():
 
     ids = []
     t = time.time()
-    for blob in plate.good_blobs():
+    for i, blob in enumerate(plate.good_blobs()):
         now = time.time()
         t, tdelta = now, now - t
 
