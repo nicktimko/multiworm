@@ -43,7 +43,7 @@ def abs_centroid(centroid, reverse=False):
 class Taper(object):
     def __init__(self, path, min_move=2, min_time=120, horizon=50):
         self.plate = multiworm.Experiment(path)
-        self.plate.add_summary_filter(multiworm.filters.lifetime_minimum(min_time))
+        self.plate.add_summary_filter(multiworm.filters.summary_lifetime_minimum(min_time))
         self.plate.add_filter(multiworm.filters.relative_move_minimum(min_move))
 
         self.horizon_frames = horizon * FRAME_RATE
@@ -74,12 +74,15 @@ class Taper(object):
         return np.zeros((self.plate.max_blobs, width), dtype=dtype)
 
     def load_data(self, show_progress=False):
+        """
+        Call to load data from the experiment and set up scoring method
+        """
         self.plate.load_summary()
         self.starts = self._allocate_zeros(4, dtype='int32')
         self.ends = self._allocate_zeros(4, dtype='int32')
         self.displacements = self._allocate_zeros(self.horizon_frames)
 
-        for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 5)):
+        for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 7)):
             bid, bdata = blob
             bdata = self._condense_blob(bdata)
             blob = None
@@ -104,4 +107,10 @@ class Taper(object):
         self.ends.resize(i + 1, 4)
         self.displacements.resize(i + 1, self.horizon_frames)
 
-        scorer = scoring.DisplacementScorer(self.displacements)
+        self.scorer = scoring.DisplacementScorer(self.displacements)
+
+    def find_candidates(self, max_fgap=500, max_dgap=400):
+        """
+        Finds all candidate joins within the given number of frames and 
+        distance.
+        """

@@ -37,7 +37,7 @@ def tapetest():
     #blob_generator = 
     #taper.plate.good_blobs = lambda: itertools.islice(taper.plate.good_blobs(), 4)
 
-    taper.process(show_progress=True)
+    taper.load_data(show_progress=True)
 
 if __name__ == '__main__':
     import cProfile as profile

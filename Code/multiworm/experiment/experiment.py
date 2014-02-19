@@ -99,8 +99,8 @@ class Experiment(object):
 
     def add_summary_filter(self, f):
         """
-        Add a function that can be passed a blobs_summary item and returns 
-        whether or not it should be kept.
+        Add a function that can be passed a blobs_summary Numpy structured 
+        array and removes undesirable rows.
         """
         self.summary_filters.append(f)
 
