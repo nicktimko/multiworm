@@ -6,6 +6,8 @@ __pycache__/
 \.rej$                      # hg revert rejected changes
 \.orig$                     # hg revert backups
 \.profile$                  # profiling output files
+/profiles/                  # profiling output files
+/tests?/\w*[-_]?data/       # data files generated for testing purposes
 
 ## Packaging
 \.egg-info/
