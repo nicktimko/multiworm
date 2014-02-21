@@ -72,4 +72,5 @@ class DisplacementScorer(object):
                 #print(dgap, fgap, self.distance_domain, self.frame_gap_domain)
                 raise ValueError('Value outside of domain')
 
-        return self.score_interp(fgap, dgap)
+        result = self.score_interp(fgap, dgap)
+        return np.clip(result, 1e-100, 1e100, out=result)

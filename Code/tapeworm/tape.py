@@ -20,11 +20,17 @@ from . import scoring
 
 FRAME_RATE = 14
 
+# Absolute requirements for candidates.  Extremely liberal criteria.
+MAX_FRAME_GAP = 500 #: Maximum gap time in frames to consider (1 s ~= 10 frames)
+MAX_WORM_SPEED = 1.37 #: Worms move at some finite speed, measured in px/frame.
+MAX_OBS_FRAC = 0.90 #: Assume that the observed worms were only moving this fraction of theoretical maximum
+WORM_ERROR = 10 #: Offset in pixels to add on max speed bounding "cone".
+
 def dist(a, b):
     '''
     Reurns the Euclidean distance between *a* and *b*.
     '''
-    return np.linalg.norm(np.array(a) - np.array(b))
+    return np.linalg.norm(np.array(a, dtype=float) - np.array(b, dtype=float))
 
 def abs_centroid(centroid, reverse=False):
     '''
@@ -39,6 +45,36 @@ def abs_centroid(centroid, reverse=False):
     # http://stackoverflow.com/a/12712725/194586
     displacement = np.sqrt(np.einsum('...i,...i', centroid, centroid, dtype='float64'))
     return displacement
+
+def find_candidates(ends, starts, params=None):
+    p = {
+        'max_fgap': MAX_FRAME_GAP,
+        'max_speed': MAX_WORM_SPEED / MAX_OBS_FRAC,
+        'error': WORM_ERROR,
+    }
+    if params is not None:
+        p.update(params)
+
+    candidates = {}
+    for blob_a in ends:
+        candidates[blob_a['bid']] = {}
+        for blob_b in starts[np.logical_and(
+                    blob_a['f'] < starts['f'], 
+                    starts['f'] <= blob_a['f'] + p['max_fgap']
+                )]:
+            f_gap = blob_b['f'] - blob_a['f']
+            d_gap = dist(blob_a['loc'], blob_b['loc'])
+
+            # check if it's in the 'cone'
+            if (d_gap <= p['error'] + f_gap * p['max_speed']):
+                # a->b is possible, save it.
+                candidates[blob_a['bid']][blob_b['bid']] = {
+                            'd': d_gap, 
+                            'f': f_gap,
+                        }
+
+    return candidates
+
 
 class Taper(object):
     def __init__(self, path, min_move=2, min_time=120, horizon=50):
@@ -70,7 +106,9 @@ class Taper(object):
 
         return simple_blob
 
-    def _allocate_zeros(self, width, dtype=None):
+    def _allocate_zeros(self, width=1, dtype=None):
+        if dtype:
+            dtype = multiworm.util.dtype(dtype)
         return np.zeros((self.plate.max_blobs, width), dtype=dtype)
 
     def load_data(self, show_progress=False):
@@ -78,8 +116,9 @@ class Taper(object):
         Call to load data from the experiment and set up scoring method
         """
         self.plate.load_summary()
-        self.starts = self._allocate_zeros(4, dtype='int32')
-        self.ends = self._allocate_zeros(4, dtype='int32')
+        terminal_fields = [('bid', 'int32'), ('loc', '2int16'), ('f', 'int32')]
+        self.starts = self._allocate_zeros(dtype=terminal_fields)
+        self.ends = self._allocate_zeros(dtype=terminal_fields)
         self.displacements = self._allocate_zeros(self.horizon_frames)
 
         for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 7)):
@@ -87,8 +126,8 @@ class Taper(object):
             bdata = self._condense_blob(bdata)
             blob = None
 
-            self.starts[i] = (bid,) + bdata['born_at'] + (bdata['born_f'],)
-            self.ends[i] = (bid,) + bdata['died_at'] + (bdata['died_f'],)
+            self.starts[i] = bid, bdata['born_at'], bdata['born_f']
+            self.ends[i] = bid, bdata['died_at'], bdata['died_f']
             self.displacements[i] = abs_centroid(bdata['centroid'])
 
             if show_progress:
@@ -109,8 +148,52 @@ class Taper(object):
 
         self.scorer = scoring.DisplacementScorer(self.displacements)
 
-    def find_candidates(self, max_fgap=500, max_dgap=400):
-        """
-        Finds all candidate joins within the given number of frames and 
-        distance.
-        """
+    # def find_candidates(self, max_fgap=500, max_dgap=400):
+    #     """
+    #     Finds all candidate joins within the given number of frames and 
+    #     distance.
+    #     """
+    #     #for blob in self.ends:
+
+    #     MAX_DIST = WORM_ERROR + MAX_FRAME_GAP * MAX_WORM_SPEED / MAX_OBS_FRAC
+
+    #     candidates = {}
+    #     for blob_a in self.ends:
+    #         candidates[blob_a['bid']] = []
+    #         for blob_b in collection.find({
+    #                 'c_isgood': True,
+    #                 # filter by frame
+    #                 b_time: {
+    #                     '$lte': blob_a[a_time] + (0 if reverse else MAX_FRAME_GAP),
+    #                     '$gte': blob_a[a_time] - (MAX_FRAME_GAP if reverse else 0),
+    #                     },
+    #                 # filter by distance (this will rough out a cylinder, need 
+    #                 # further scuplting to get our desired cone)
+    #                 b_coord: {'$within': {
+    #                     '$center': [blob_a[a_coord], MAX_DIST / MONGO_GEO_SCALE],
+    #                     }},
+    #             }, b_fields):
+    #             f_gap = abs(blob_b[b_time] - blob_a[a_time])
+    #             d_gap = dist(blob_a[a_coord], blob_b[b_coord]) * MONGO_GEO_SCALE
+    #             if (d_gap <= WORM_ERROR + f_gap * MAX_WORM_SPEED/MAX_OBS_FRAC):
+    #                 # a->b is possible, save it.
+    #                 logger.debug("{} -> {}".format(blob_a['bid'], blob_b['bid']))
+    #                 if extended:
+    #                     candidates[blob_a['bid']].append({
+    #                             'bid': blob_b['bid'], 
+    #                             'd': d_gap, 
+    #                             'f': f_gap,
+    #                         })
+    #                 else:
+    #                     candidates[blob_a['bid']].append(blob_b['bid'])
+
+    #     if len(candidates) <= 0:
+    #         print('Warning: No data.')
+
+    #     candidates['reverse'] = reverse
+
+    #     if dumpfile:
+    #         with open(dumpfile, 'wb') as f:
+    #             pickle.dump(candidates, f)
+
+    #     return candidates

@@ -16,35 +16,66 @@ class TestScoring(unittest.TestCase):
         self.length = 30
         self.n_paths = 20
         offset = 0.8
-        self.displacement_data = np.array([
+        displacement_data = np.array([
                 0.2 * (np.random.rand() + 0.5) # some random scaling
                 * np.append([0], # start at 0
                     np.cumsum(np.random.rand(self.length - 1) + offset)) 
                 for _ in range(self.n_paths)
             ])
-        self.max_displacement = self.displacement_data.max()
 
-    def test_fitter(self):
-        scorer = tapeworm.scoring.DisplacementScorer(self.displacement_data)
-        self.assertEquals(tuple(scorer.frame_gap_domain), (1, self.length))
-        self.assertEquals(tuple(scorer.distance_domain), (0, self.max_displacement))
+        self.min_f, self.max_f = (1, self.length)
+        self.min_d, self.max_d = (0, displacement_data.max())
+        self.mean_f = (self.min_f + self.max_f) / 2
+        self.mean_d = (self.min_d + self.max_d) / 2
 
+        self.scorer = tapeworm.scoring.DisplacementScorer(displacement_data)
+
+    def test_internal_domain(self):
+        self.assertEquals(
+                tuple(self.scorer.frame_gap_domain),
+                (self.min_f, self.max_f),
+                "Scorer frame gap domain differs from expected value.")
+        self.assertEquals(
+                tuple(self.scorer.distance_domain),
+                (self.min_d, self.max_d),
+                "Scorer distance gap domain differs from expected value.")
+
+    def test_good_values(self):
+        # Validate domain and range
         try:
-            scorer(1, 0) # 1 frame, no displacement
-            scorer(self.length / 2, self.max_displacement / 2)
-            scorer(self.length, self.max_displacement)
+            args = [
+                # corners
+                (self.min_f, self.min_d),
+                (self.max_f, self.min_d),
+                (self.min_f, self.max_d),
+                (self.max_f, self.max_d),
+                # edges
+                (self.mean_f, self.min_d),
+                (self.mean_f, self.max_d),
+                (self.min_f, self.mean_d),
+                (self.max_f, self.mean_d),
+                # middle
+                (self.mean_f, self.mean_d),
+            ]
+            for arg in args:
+                self.assertTrue(1e-100 <= self.scorer(*arg), 
+                        "Scorer returning values that are too small.")
         except ValueError:
-            self.fail("Domain error when calling scorer")
+            self.fail("Scorer not accepting values in known-good domain")
 
+    def test_bad_values(self):
         bad_args = [
-                (self.length + 0.1, self.max_displacement / 2),
-                (self.length / 2, self.max_displacement + 0.1),
-                (-0.1, self.max_displacement / 2),
-                (self.length / 2, -0.1)
+                (self.max_f + 0.1, self.mean_d),
+                (self.mean_d, self.max_d + 0.1),
+                (self.min_f - 0.1, self.mean_d),
+                (self.mean_f, self.min_d - 0.1),
             ]
         for badness in bad_args:
-            self.assertRaises(ValueError, scorer, *badness)
-
+            try:
+                self.scorer(*badness)
+                self.fail("Scorer accepting values in known-bad domain")
+            except ValueError:
+                pass
 
 if __name__ == '__main__':
     unittest.main()
