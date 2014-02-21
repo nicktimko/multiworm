@@ -54,7 +54,7 @@ class TestCandidateFinding(unittest.TestCase):
                             + (starts['loc'][0][1] - ends['loc'][0][1])**2)
                 }}}
             self.assertEqual(tapeworm.tape.find_candidates(
-                    ends, termini(starts), params=params),
+                    ends, termini(starts), **params),
                 expected_result,
             )
 
@@ -67,7 +67,7 @@ class TestCandidateFinding(unittest.TestCase):
 
         for starts in outsides:
             self.assertEqual(tapeworm.tape.find_candidates(
-                    ends, termini(starts), params=params),
+                    ends, termini(starts), **params),
                 {1:{}},
             )
 
@@ -95,6 +95,6 @@ class TestCandidateFinding(unittest.TestCase):
         }
 
         self.assertEqual(
-                tapeworm.tape.find_candidates(ends, starts, params=params),
+                tapeworm.tape.find_candidates(ends, starts, **params),
                 expected_result,
             )

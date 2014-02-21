@@ -46,13 +46,41 @@ def abs_centroid(centroid, reverse=False):
     displacement = np.sqrt(np.einsum('...i,...i', centroid, centroid, dtype='float64'))
     return displacement
 
-def find_candidates(ends, starts, params=None):
+def find_candidates(ends, starts, **params):
+    """
+    Finds any possible connection between *ends* and *starts* within a 
+    'cone' projected forward through time and area.
+
+    Parameters
+    ----------
+    ends : numpy.ndarray
+        Numpy structured array containing blob endpoints--where tracking was 
+        lost--with the following column names:
+            * `bid` - Blob ID
+            * `loc` - (X, Y) coordinates of where blob was lost
+            * `f` - Frame blob lost
+
+    starts : numpy.ndarray
+        As *ends*, but where blob tracking began.
+
+    Keyword Parameters
+    ------------------
+    max_fgap : number
+        Maximum gap length to accept in frames.  The 'height' of the cone 
+        to search in.
+    max_speed : number
+        Maximum speed to include connections in pixels per frame.  The 
+        'slope' of the cone.
+    error : number
+        Acommodate jitter in the track locations by accepting deviations of 
+        up to this number of pixels at all times.
+    """
     p = {
         'max_fgap': MAX_FRAME_GAP,
         'max_speed': MAX_WORM_SPEED / MAX_OBS_FRAC,
         'error': WORM_ERROR,
     }
-    if params is not None:
+    if params:
         p.update(params)
 
     candidates = {}
@@ -148,52 +176,14 @@ class Taper(object):
 
         self.scorer = scoring.DisplacementScorer(self.displacements)
 
-    # def find_candidates(self, max_fgap=500, max_dgap=400):
-    #     """
-    #     Finds all candidate joins within the given number of frames and 
-    #     distance.
-    #     """
-    #     #for blob in self.ends:
+    def find_candidates(self, max_fgap=500):
+        """
+        Finds all candidate joins within the given number of frames and 
+        distance.
+        """
+        self.candidates = find_candidates(self.ends, self.starts, {'max_fgap': max_fgap})
 
-    #     MAX_DIST = WORM_ERROR + MAX_FRAME_GAP * MAX_WORM_SPEED / MAX_OBS_FRAC
-
-    #     candidates = {}
-    #     for blob_a in self.ends:
-    #         candidates[blob_a['bid']] = []
-    #         for blob_b in collection.find({
-    #                 'c_isgood': True,
-    #                 # filter by frame
-    #                 b_time: {
-    #                     '$lte': blob_a[a_time] + (0 if reverse else MAX_FRAME_GAP),
-    #                     '$gte': blob_a[a_time] - (MAX_FRAME_GAP if reverse else 0),
-    #                     },
-    #                 # filter by distance (this will rough out a cylinder, need 
-    #                 # further scuplting to get our desired cone)
-    #                 b_coord: {'$within': {
-    #                     '$center': [blob_a[a_coord], MAX_DIST / MONGO_GEO_SCALE],
-    #                     }},
-    #             }, b_fields):
-    #             f_gap = abs(blob_b[b_time] - blob_a[a_time])
-    #             d_gap = dist(blob_a[a_coord], blob_b[b_coord]) * MONGO_GEO_SCALE
-    #             if (d_gap <= WORM_ERROR + f_gap * MAX_WORM_SPEED/MAX_OBS_FRAC):
-    #                 # a->b is possible, save it.
-    #                 logger.debug("{} -> {}".format(blob_a['bid'], blob_b['bid']))
-    #                 if extended:
-    #                     candidates[blob_a['bid']].append({
-    #                             'bid': blob_b['bid'], 
-    #                             'd': d_gap, 
-    #                             'f': f_gap,
-    #                         })
-    #                 else:
-    #                     candidates[blob_a['bid']].append(blob_b['bid'])
-
-    #     if len(candidates) <= 0:
-    #         print('Warning: No data.')
-
-    #     candidates['reverse'] = reverse
-
-    #     if dumpfile:
-    #         with open(dumpfile, 'wb') as f:
-    #             pickle.dump(candidates, f)
-
-    #     return candidates
+    def score_candidates(self):
+        for connections in six.itervalues(self.candidates):
+            for connection in six.itervalues(connections):
+                connection['score'] = self.scorer(connection['f'], connection['d'])
