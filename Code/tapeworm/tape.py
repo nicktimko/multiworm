@@ -85,18 +85,20 @@ def find_candidates(ends, starts, **params):
 
     candidates = {}
     for blob_a in ends:
-        candidates[blob_a['bid']] = {}
+        a_bid = int(blob_a['bid'])
+        candidates[a_bid] = {}
         for blob_b in starts[np.logical_and(
                     blob_a['f'] < starts['f'], 
                     starts['f'] <= blob_a['f'] + p['max_fgap']
                 )]:
+            b_bid = int(blob_b['bid'])
             f_gap = blob_b['f'] - blob_a['f']
             d_gap = dist(blob_a['loc'], blob_b['loc'])
 
             # check if it's in the 'cone'
             if (d_gap <= p['error'] + f_gap * p['max_speed']):
                 # a->b is possible, save it.
-                candidates[blob_a['bid']][blob_b['bid']] = {
+                candidates[a_bid][b_bid] = {
                             'd': d_gap, 
                             'f': f_gap,
                         }
@@ -147,16 +149,17 @@ class Taper(object):
         terminal_fields = [('bid', 'int32'), ('loc', '2int16'), ('f', 'int32')]
         self.starts = self._allocate_zeros(dtype=terminal_fields)
         self.ends = self._allocate_zeros(dtype=terminal_fields)
-        self.displacements = self._allocate_zeros(self.horizon_frames)
+        displacements = self._allocate_zeros(self.horizon_frames)
 
-        for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 7)):
+        #for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 10)):
+        for i, blob in enumerate(self.plate.good_blobs()):
             bid, bdata = blob
             bdata = self._condense_blob(bdata)
             blob = None
 
             self.starts[i] = bid, bdata['born_at'], bdata['born_f']
             self.ends[i] = bid, bdata['died_at'], bdata['died_f']
-            self.displacements[i] = abs_centroid(bdata['centroid'])
+            displacements[i] = abs_centroid(bdata['centroid'])
 
             if show_progress:
                 done, total = self.plate.progress()
@@ -170,20 +173,23 @@ class Taper(object):
             print()
 
         # crop arrays
-        self.starts.resize(i + 1, 4)
-        self.ends.resize(i + 1, 4)
-        self.displacements.resize(i + 1, self.horizon_frames)
+        self.starts.resize(i + 1)
+        self.ends.resize(i + 1)
+        displacements.resize(i + 1, self.horizon_frames)
 
-        self.scorer = scoring.DisplacementScorer(self.displacements)
+        self.scorer = scoring.DisplacementScorer(displacements)
 
     def find_candidates(self, max_fgap=500):
         """
         Finds all candidate joins within the given number of frames and 
         distance.
         """
-        self.candidates = find_candidates(self.ends, self.starts, {'max_fgap': max_fgap})
+        self.candidates = find_candidates(self.ends, self.starts, max_fgap=max_fgap)
 
     def score_candidates(self):
-        for connections in six.itervalues(self.candidates):
-            for connection in six.itervalues(connections):
+        for lost_bid, connections in six.iteritems(self.candidates):
+            for found_bid, connection in six.iteritems(connections):
                 connection['score'] = self.scorer(connection['f'], connection['d'])
+                print('{0:5d} --> {1:<5d} : f={2:3d}, d={3:5.1f}, log_score={4:4.1f}'.format(
+                        lost_bid, found_bid, connection['f'], connection['d'], np.log10(connection['score'])
+                    ))

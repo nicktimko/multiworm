@@ -20,7 +20,7 @@ class DisplacementScorer(object):
     def __init__(self, displacements):
         self.kde_fit(displacements)
 
-        self.show()
+        #self.show()
 
     def kde_fit(self, displacements, bandwidth=None, subsample=None, samples=KDE_SAMPLES):
         self.distance_domain = 0, displacements.max()

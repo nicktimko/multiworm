@@ -38,6 +38,8 @@ def tapetest():
     #taper.plate.good_blobs = lambda: itertools.islice(taper.plate.good_blobs(), 4)
 
     taper.load_data(show_progress=True)
+    taper.find_candidates()
+    taper.score_candidates()
 
 if __name__ == '__main__':
     import cProfile as profile
