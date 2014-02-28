@@ -138,27 +138,32 @@ class Experiment(object):
             for line in f:
                 if line[0] != '%':
                     yield line
+                else:
+                    return
 
-    def parse_blob(self, bid):
+    def parse_blob(self, bid, parser=None):
         """
-        Parses the blob with id *bid*.
+        Parses the blob with id *bid* using parsing function *parser* that 
+        accepts a generator returning all lines from the blob.
         """
-        return blob.parse_record(self._blob_lines(bid))
+        if parser is None:
+            parser = blob.parse_record
+        return parser(self._blob_lines(bid))
 
-    def all_blobs(self):
+    def all_blobs(self, parser=None):
         """
         Generator that parses and yields all the blobs in the summary data.
         """
         for bid in self.blobs_summary['bid']:
-            yield bid, self.parse_blob(bid)
+            yield bid, self.parse_blob(bid, parser=parser)
             self.blobs_parsed += 1
 
-    def good_blobs(self):
+    def good_blobs(self, parser=None):
         """
         Generator that produces filtered blobs.  You could route the output 
         to a database, memory, or whereever.
         """
-        for blob in multifilter(self.filters, self.all_blobs()):
+        for blob in multifilter(self.filters, self.all_blobs(parser=parser)):
             yield blob
             blob = None # free mem
 
