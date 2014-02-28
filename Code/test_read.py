@@ -7,7 +7,7 @@ import itertools
 import argparse
 #import gc
 import time
-#import resource
+import resource
 
 import multiworm
 
@@ -19,14 +19,29 @@ TEST_DATA_SETS = {
 }
 
 
+def memory_usage():
+    """Memory usage of the current process in kilobytes."""
+    status = None
+    result = {'peak': 0, 'rss': 0}
+    try:
+        # This will only work on systems with a /proc file system
+        # (like Linux).
+        status = open('/proc/self/status')
+        for line in status:
+            parts = line.split()
+            key = parts[0][2:-1].lower()
+            if key in result:
+                result[key] = int(parts[1])
+    finally:
+        if status is not None:
+            status.close()
+    return result
+
 def memprint():
-    #rusage = resource.getrusage(resource.RUSAGE_SELF)
-    #peak = rusage.ru_maxrss/1024.0
-    #m = memory_usage()
-    #peak = m['peak']/1024
-    #rss = m['rss']/1024
-    #return 'Peak: {:6.1f} MB'.format(peak)
-    pass
+    m = memory_usage()
+    peak = m['peak']/1024
+    rss = m['rss']/1024
+    return 'Peak: {:6.1f} MB, Current: {:6.1f} MB'.format(peak, rss)
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -39,7 +54,7 @@ def main():
 
     ids = []
     t = time.time()
-    for blob in itertools.islice(plate.good_blobs(), 5):
+    for blob in itertools.islice(plate.good_blobs(), 50):
         now = time.time()
         t, tdelta = now, now - t
 
