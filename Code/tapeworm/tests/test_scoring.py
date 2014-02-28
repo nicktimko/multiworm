@@ -42,26 +42,24 @@ class TestScoring(unittest.TestCase):
 
     def test_good_values(self):
         # Validate domain and range
-        try:
-            args = [
-                # corners
-                (self.min_f, self.min_d),
-                (self.max_f, self.min_d),
-                (self.min_f, self.max_d),
-                (self.max_f, self.max_d),
-                # edges
-                (self.mean_f, self.min_d),
-                (self.mean_f, self.max_d),
-                (self.min_f, self.mean_d),
-                (self.max_f, self.mean_d),
-                # middle
-                (self.mean_f, self.mean_d),
-            ]
-            for arg in args:
-                self.assertTrue(1e-100 <= self.scorer(*arg), 
-                        "Scorer returning values that are too small.")
-        except ValueError:
-            self.fail("Scorer not accepting values in known-good domain")
+        args = [
+            # corners
+            (self.min_f, self.min_d),
+            (self.max_f, self.min_d),
+            (self.min_f, self.max_d),
+            (self.max_f, self.max_d),
+            # edges
+            (self.mean_f, self.min_d),
+            (self.mean_f, self.max_d),
+            (self.min_f, self.mean_d),
+            (self.max_f, self.mean_d),
+            # middle
+            (self.mean_f, self.mean_d),
+        ]
+        for arg in args:
+            self.assertTrue(1e-100 <= self.scorer(*arg), 
+                    "Scorer returning values that are too small/negative "
+                    "in domain.")
 
     def test_bad_values(self):
         bad_args = [
@@ -71,11 +69,8 @@ class TestScoring(unittest.TestCase):
                 (self.mean_f, self.min_d - 0.1),
             ]
         for badness in bad_args:
-            try:
-                self.scorer(*badness)
-                self.fail("Scorer accepting values in known-bad domain")
-            except ValueError:
-                pass
+            self.assertTrue(self.scorer(*badness) >= 0,
+                    "Scorer accepting values in known-bad domain")
 
 if __name__ == '__main__':
     unittest.main()

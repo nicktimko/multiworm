@@ -7,10 +7,10 @@ from __future__ import (
         absolute_import, division, print_function, unicode_literals)
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
-#from future.builtins import super
 
 import sys
 import itertools
+import math
 
 import numpy as np
 
@@ -27,24 +27,37 @@ MAX_OBS_FRAC = 0.90 #: Assume that the observed worms were only moving this frac
 WORM_ERROR = 10 #: Offset in pixels to add on max speed bounding "cone".
 
 def dist(a, b):
-    '''
+    """
     Reurns the Euclidean distance between *a* and *b*.
-    '''
+    """
     return np.linalg.norm(np.array(a, dtype=float) - np.array(b, dtype=float))
 
 def abs_centroid(centroid, reverse=False):
-    '''
+    """
     OLD DOCS
     # Looks through *collection* for ``c_isgood`` ``seq_centroid`` blob paths.
     # Returns a list of NumPy arrays containing the absolute displacement at
     # each time point (frame) from the start.
-    '''
+    """
     centroid = np.array(centroid)
     centroid -= centroid[0]
 
     # http://stackoverflow.com/a/12712725/194586
     displacement = np.sqrt(np.einsum('...i,...i', centroid, centroid, dtype='float64'))
     return displacement
+
+def jagged_mask(data):
+    """
+    Stacks up variable length series into a faux-jagged (masked) array.
+    """
+    h_size = max(len(trace) for trace in data)
+    # stack up data, mask off non-existant values (np can't do jagged arrays)
+    dstack = np.ma.masked_all((len(data), h_size))
+    for i, trace in enumerate(data):
+        len_trace = len(trace)
+        dstack[i, 0:len_trace] = trace
+
+    return dstack
 
 def find_candidates(ends, starts, **params):
     """
@@ -107,7 +120,7 @@ def find_candidates(ends, starts, **params):
 
 
 class Taper(object):
-    def __init__(self, path, min_move=2, min_time=120, horizon=50):
+    def __init__(self, path, min_move=2, min_time=10, horizon=50):
         self.plate = multiworm.Experiment(path)
         self.plate.add_summary_filter(multiworm.filters.summary_lifetime_minimum(min_time))
         self.plate.add_filter(multiworm.filters.relative_move_minimum(min_move))
@@ -149,9 +162,9 @@ class Taper(object):
         terminal_fields = [('bid', 'int32'), ('loc', '2int16'), ('f', 'int32')]
         self.starts = self._allocate_zeros(dtype=terminal_fields)
         self.ends = self._allocate_zeros(dtype=terminal_fields)
-        displacements = self._allocate_zeros(self.horizon_frames)
+        displacements = []
 
-        #for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 10)):
+        #for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 100)):
         for i, blob in enumerate(self.plate.good_blobs()):
             bid, bdata = blob
             bdata = self._condense_blob(bdata)
@@ -159,12 +172,12 @@ class Taper(object):
 
             self.starts[i] = bid, bdata['born_at'], bdata['born_f']
             self.ends[i] = bid, bdata['died_at'], bdata['died_f']
-            displacements[i] = abs_centroid(bdata['centroid'])
+            displacements.append(abs_centroid(bdata['centroid']))
 
             if show_progress:
                 done, total = self.plate.progress()
                 percent = 100*done/total
-                print(' Loading... [ {:-<50s} ] {}/{} ({:.1f}%)    '.format(
+                print(' Loading... [ {:-<50s} ] {}/{} ({:.1f}%)      '.format(
                         '#'*int(percent//2), done, total, percent), 
                         end='\r')
                 sys.stdout.flush()
@@ -175,8 +188,8 @@ class Taper(object):
         # crop arrays
         self.starts.resize(i + 1)
         self.ends.resize(i + 1)
-        displacements.resize(i + 1, self.horizon_frames)
 
+        displacements = jagged_mask(displacements)
         self.scorer = scoring.DisplacementScorer(displacements)
 
     def find_candidates(self, max_fgap=500):
@@ -190,6 +203,6 @@ class Taper(object):
         for lost_bid, connections in six.iteritems(self.candidates):
             for found_bid, connection in six.iteritems(connections):
                 connection['score'] = self.scorer(connection['f'], connection['d'])
-                print('{0:5d} --> {1:<5d} : f={2:3d}, d={3:5.1f}, log_score={4:4.1f}'.format(
-                        lost_bid, found_bid, connection['f'], connection['d'], np.log10(connection['score'])
+                print('{0:5d} --> {1:<5d} : f={2:3d}, d={3:5.1f}, log_score={4:.1f}'.format(
+                        lost_bid, found_bid, connection['f'], connection['d'], math.log10(connection['score'].max())
                     ))
