@@ -14,7 +14,7 @@ import multiworm
 named_location = '%'
 
 data_file = os.path.join(os.path.dirname(__file__), 'data_sets.json')
-with open(data_file, 'rb') as f:
+with open(data_file, 'r') as f:
     data_sets = json.load(f)
 
 def where(data_set):
