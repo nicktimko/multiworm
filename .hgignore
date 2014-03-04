@@ -16,3 +16,6 @@ Code/dist/
 ## Local
 \.sublime.*$                # Sublime Text project management
 venv[^/]*/                  # virtualenvs (any folder prefixed with "venv")
+
+## Builds
+_build/                     # Sphinx
