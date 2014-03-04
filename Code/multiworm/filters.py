@@ -48,3 +48,21 @@ def relative_move_minimum(threshold):
         return move_px >= size_px * threshold
 
     return f
+
+def area_minimum(threshold):
+    """
+    Returns a function that filters parsed blob data by a minimum ...
+    """
+    def f(blob):
+        return bool
+
+    return f
+
+def aspect_ratio_minimum(threshold):
+    """
+    Returns a function that filters parsed blob data by a minimum ...
+    """
+    def f(blob):
+        return bool
+
+    return f

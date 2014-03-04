@@ -39,7 +39,7 @@ def parse(file_path):
     array containing the following columns:
 
         1. ID ('bid')
-        2. *.blob file number ('file_no')
+        2. \*.blob file number ('file_no')
         3. Blob byte offset within file ('offset')
         4. Time found ('born')
         5. Frame found ('born_f')
@@ -47,9 +47,10 @@ def parse(file_path):
         7. Frame lost ('died_f')
     """
     blobs_summary = defaultdict(dict, {})
+    section_delims = {'%': 'events', '%%': 'lost_and_found', '%%%': 'offsets'}
+    active_blobs = set()
+    frame_times = []
     with open(file_path, 'r') as f:
-        active_blobs = set()
-        frame_times = []
         for i, line in enumerate(f, 1):
             # store all blob locations and remove them from end of line.
             line = line.split()
@@ -68,22 +69,22 @@ def parse(file_path):
                 raise MWTDataError("Malformed summary file, line with "
                         "invalid number of fields (<15)")
 
-            line = line[15:]
+            # split up the remaining data
+            data = {'events': [], 'lost_and_found': [], 'offsets': []}
+            section = None
+            for element in line[15:]:
+                if element in section_delims:
+                    section = section_delims[element]
+                else:
+                    data[section].append(element)
 
-            # check for offsets
-            if line.count('%%%'):
-                offset_idx = line.index('%%%')
-                line, offset_data = line[:offset_idx], line[offset_idx+1:]
-                blobs, locations = alternate(offset_data)
-                for b, l in zip(blobs, locations):
-                    b = int(b)
-                    fnum, offset = (int(x) for x in l.split('.'))
-                    blobs_summary[b]['location'] = fnum, offset
-                if offset_idx == 0:
-                    continue
+            for b, l in zip(*alternate(data['offsets'])):
+                b = int(b)
+                fnum, offset = (int(x) for x in l.split('.'))
+                blobs_summary[b]['location'] = fnum, offset
 
             # store all blob start and end times and remove them from end of line.
-            lost_bids, found_bids = alternate([int(i) for i in line[1:]])
+            lost_bids, found_bids = alternate([int(i) for i in data['lost_and_found']])
             for b in found_bids:
                 blobs_summary[b]['born'] = time
                 blobs_summary[b]['born_f'] = frame

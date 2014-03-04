@@ -14,7 +14,7 @@ import numpy as np
 
 from ..util import alternate, dtype
 
-def parse_record(lines):
+def parse(lines):
     """
     Consumes a provided *lines* iterable and generates two dictionaries; the 
     first containing the basic information, packaged in lists with keys:
@@ -98,6 +98,8 @@ GEO_FIELDS = dtype([
 
 def parse_np(lines):
     """
+    **UNIMPLEMENTED**
+    
     Consumes a provided *payload* string and generates two arrays for each
     block of data in it. The first contains the basic information,
     guaranteed in each frame.  Column fields in first array:

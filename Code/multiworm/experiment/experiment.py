@@ -21,25 +21,18 @@ from ..util import multifilter, multifilter_block, MWTDataError
 
 class Experiment(object):
     """
-    Provides interfaces for Multi-Worm Tracker experiment data.  Initalized 
-    with a path to the experiment data, it identifies the related files and 
-    gives methods to load data into memory and/or parse selected blobs.
+    Provides interfaces for Multi-Worm Tracker experiment data.
 
-    General workflow:
-
-    * Initalize object with path
-    * Add desired filters
-    * Load summary file
-    * Store data by either:
-      * Using provided generator to pull good blobs and storing somewhere 
-        else (e.g. a database)
-      * Call the loader function that pulls all blobs and stores them in 
-        the local instance
+    Provide the path to the experiment data in order to initialize.  Next, 
+    pass filter functions to :func:`add_summary_filter` and/or 
+    :func:`add_filter`.  Then call :func:`load_summary` to index the 
+    location of all possible good blobs.
     """
     def __init__(self, data_path):
-        self.find_summary_file(data_path)
-        self.find_blobs_files(data_path)
-        self.find_images(data_path)
+        self.data_path = data_path
+        self._find_summary_file()
+        self._find_blobs_files()
+        self._find_images()
 
         self.blobs_summary = None
         
@@ -52,12 +45,12 @@ class Experiment(object):
 
         self.blobs_parsed = 0
 
-    def find_summary_file(self, data_path):
+    def _find_summary_file(self):
         """
         Find blobs files and verify uniqueness
         """
         try:
-            summaries = glob.glob(os.path.join(data_path, '*.summary'))
+            summaries = glob.glob(os.path.join(self.data_path, '*.summary'))
             if len(summaries) > 1:
                 raise MWTDataError("Multiple summary files in target path.")
             self.summary = summaries[0]
@@ -66,19 +59,19 @@ class Experiment(object):
 
         self.basename = os.path.splitext(os.path.basename(self.summary))[0]
 
-    def find_blobs_files(self, data_path):
+    def _find_blobs_files(self):
         """
         Find blobs files and verify consecutiveness
         """
         self.blobs_files = sorted(glob.glob(os.path.join(
-                data_path, self.basename + '_?????k.blobs')))
+                self.data_path, self.basename + '_?????k.blobs')))
         for i, fn in enumerate(self.blobs_files):
             expected_fn = '{}_{:05}k.blobs'.format(self.basename, i)
             if not fn.endswith(expected_fn):
                 raise MWTDataError("Experiment data missing a consecutive "
                         "blobs file. ({})".format(expected_fn))
 
-    def find_images(self, data_path):
+    def _find_images(self):
         """
         Find related images and store them indexed by seconds (and fractions 
         thereof)
@@ -86,21 +79,21 @@ class Experiment(object):
         self.image_files = {}
         image_re_mask = re.compile(re.escape(self.basename) 
                 + r'(?P<frame>[0-9]*)\.png$')
-        for image in glob.glob(os.path.join(data_path, self.basename + '*.png')):
+        for image in glob.glob(os.path.join(self.data_path, self.basename + '*.png')):
             match = image_re_mask.search(image)
             frame_num = match.group('frame')
             self.image_files[int('0' + frame_num) / 1000] = image
 
     def add_summary_filter(self, f):
         """
-        Add a function that can be passed a blobs_summary Numpy structured 
+        Add a function `f` that can be passed a blobs_summary Numpy structured 
         array and removes undesirable rows.
         """
         self.summary_filters.append(f)
 
     def add_filter(self, f):
         """
-        Add a function that can be passed a fully parsed blobs_data item 
+        Add a function `f` that can be passed a fully parsed blobs_data item 
         and returns whether or not it should be kept.
         """
         # The item (key/value pair) is passed, but the filter should only
@@ -108,7 +101,13 @@ class Experiment(object):
         self.filters.append(lambda item: f(item[1]))
 
     def load_summary(self):
-        bs, times = summary.parse(self.summary)
+        """
+        Loads the location of blobs in the \*.blobs data files.
+
+        Must be called prior to attempting to access any blob with 
+        :func:`good_blobs`, :func:`parse_blob`, or the like.
+        """
+        bs, self.frame_times = summary.parse(self.summary)
         if bs['file_no'].max() + 1 > len(self.blobs_files):
             raise MWTDataError("Summary file refers to missing blobs files.")
 
@@ -121,7 +120,7 @@ class Experiment(object):
 
     def _blob_lines(self, bid):
         """
-        Generator that yields all lines of data for blob id *bid*.
+        Generator that yields all lines of data for blob id `bid`.
         """
         file_no, offset = self.blobs_summary[['file_no', 'offset']][self.bs_mapping[bid]]
         with open(self.blobs_files[file_no], 'r') as f:
@@ -137,11 +136,26 @@ class Experiment(object):
 
     def parse_blob(self, bid, parser=None):
         """
-        Parses the blob with id *bid* using parsing function *parser* that 
-        accepts a generator returning all lines from the blob.
+        Parses the specified blob `parser` that 
+        accepts a generator returning all raw data lines from the blob.
+
+        Parameters
+        ----------
+        bid : int
+            The blob ID to parse.
+
+        parser : callable, optional
+            A function that accepts one positional argument, a generator 
+            that yields all data lines from blob `bid`.  The default parser
+            is :func:`.blob.parse`.
+
+        Returns
+        -------
+        object
+            The output from `parser`.
         """
         if parser is None:
-            parser = blob.parse_record
+            parser = blob.parse
         return parser(self._blob_lines(bid))
 
     def all_blobs(self, parser=None):

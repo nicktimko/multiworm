@@ -5,8 +5,6 @@ from __future__ import (
 import six
 
 import sys
-import os.path
-import json
 import argparse
 
 import multiworm
