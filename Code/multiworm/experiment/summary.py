@@ -12,7 +12,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from ..util import alternate, dtype
+from ..util import alternate, dtype, MWTDataError
 
 # def parse_line_segment(line_segment):
 #     # line segments ususally contain an unspecified number of paired values.
@@ -49,35 +49,49 @@ def parse(file_path):
     blobs_summary = defaultdict(dict, {})
     with open(file_path, 'r') as f:
         active_blobs = set()
-        for line in f:
+        frame_times = []
+        for i, line in enumerate(f, 1):
             # store all blob locations and remove them from end of line.
-            splitline = line.split('%%%')
-            if len(splitline) == 2:
-                line, file_offsets = splitline
-                blobs, locations = alternate(file_offsets.split())
+            line = line.split()
+            frame = int(line[0])
+            time = float(line[1])
+
+            if frame != i:
+                raise MWTDataError("Error in summary file, line has "
+                        "unexpected frame number.")
+
+            frame_times.append(time)
+
+            if len(line) == 15:
+                continue
+            elif len(line) < 15:
+                raise MWTDataError("Malformed summary file, line with "
+                        "invalid number of fields (<15)")
+
+            line = line[15:]
+
+            # check for offsets
+            if line.count('%%%'):
+                offset_idx = line.index('%%%')
+                line, offset_data = line[:offset_idx], line[offset_idx+1:]
+                blobs, locations = alternate(offset_data)
                 for b, l in zip(blobs, locations):
                     b = int(b)
                     fnum, offset = (int(x) for x in l.split('.'))
                     blobs_summary[b]['location'] = fnum, offset
+                if offset_idx == 0:
+                    continue
 
             # store all blob start and end times and remove them from end of line.
-            splitline = line.split('%%')
-            if len(splitline) == 2:
-                line, blob_connections = splitline
-                frame, time = line.split()[:2]
-                frame = int(frame)
-                time = float(time)
-
-                lost_bids, found_bids = alternate(
-                        [int(i) for i in blob_connections.split()])
-                for b in found_bids:
-                    blobs_summary[b]['born'] = time
-                    blobs_summary[b]['born_f'] = frame
-                    active_blobs.add(b)
-                for b in lost_bids:
-                    blobs_summary[b]['died'] = time
-                    blobs_summary[b]['died_f'] = frame
-                    active_blobs.discard(b)
+            lost_bids, found_bids = alternate([int(i) for i in line[1:]])
+            for b in found_bids:
+                blobs_summary[b]['born'] = time
+                blobs_summary[b]['born_f'] = frame
+                active_blobs.add(b)
+            for b in lost_bids:
+                blobs_summary[b]['died'] = time
+                blobs_summary[b]['died_f'] = frame
+                active_blobs.discard(b)
 
         # wrap up blob ends with the time
         for bid in active_blobs:
@@ -97,7 +111,7 @@ def parse(file_path):
                 bdata['born'], bdata['born_f'], 
                 bdata['died'], bdata['died_f'])
 
-    return blobs_summary_recarray
+    return blobs_summary_recarray, frame_times
 
 def make_mapping(summary_data):
     """

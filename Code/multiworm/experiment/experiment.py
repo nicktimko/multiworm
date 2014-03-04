@@ -108,7 +108,7 @@ class Experiment(object):
         self.filters.append(lambda item: f(item[1]))
 
     def load_summary(self):
-        bs = summary.parse(self.summary)
+        bs, times = summary.parse(self.summary)
         if bs['file_no'].max() + 1 > len(self.blobs_files):
             raise MWTDataError("Summary file refers to missing blobs files.")
 
