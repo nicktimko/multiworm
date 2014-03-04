@@ -16,13 +16,7 @@ import re
 import numpy as np
 
 from . import blob, summary
-from ..util import multifilter, multifilter_block
-
-class MWTDataError(Exception):
-    """
-    Generic Error class for something wrong with the MWT output data
-    """
-    pass
+from ..util import multifilter, multifilter_block, MWTDataError
 
 
 class Experiment(object):

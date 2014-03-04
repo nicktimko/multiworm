@@ -13,6 +13,8 @@ import itertools
 import math
 
 import numpy as np
+import matplotlib.pyplot as plt
+import networkx as nx
 
 import multiworm
 enumerate = multiworm.util.enumerate
@@ -202,7 +204,40 @@ class Taper(object):
     def score_candidates(self):
         for lost_bid, connections in six.iteritems(self.candidates):
             for found_bid, connection in six.iteritems(connections):
-                connection['score'] = self.scorer(connection['f'], connection['d'])
-                print('{0:5d} --> {1:<5d} : f={2:3d}, d={3:5.1f}, log_score={4:.1f}'.format(
-                        lost_bid, found_bid, connection['f'], connection['d'], math.log10(connection['score'].max())
+                connection['score'] = math.log10(self.scorer(connection['f'], connection['d']).max())
+                print('{0:5d} --> {1:<5d} : f={2:3d}, d={3:5.1f}, log_score={4:.2f}'.format(
+                        lost_bid, found_bid, connection['f'], connection['d'], connection['score']
                     ))
+
+    def judge_candidates(self, log_threshold=-2):
+        graph = nx.DiGraph()
+        patched_segments = []
+        for lost_bid, connections in six.iteritems(self.candidates):
+            hi_scorer = 0
+            hi_score = -np.inf
+            for found_bid, connection in six.iteritems(connections):
+                #graph.add_edge(lost_bid, found_bid, weight=connection['score'])
+                if connection['score'] > hi_score:
+                    hi_score = connection['score']
+                    hi_scorer = found_bid
+
+            # look if there are any matching ends
+            for trace in patched_segments:
+                if hi_score >= log_threshold:
+                    if trace[-1] == lost_bid:
+                        trace.append(hi_scorer)
+                        break
+                    #graph.add_edge(lost_bid, hi_scorer)
+                else:
+                    break
+            # if nothing found, start a new segment
+            else:
+                # ignore '0' segment
+                if hi_scorer:
+                    patched_segments.append([lost_bid, hi_scorer])
+
+        for trace in patched_segments:
+            print(' -> '.join(str(bid) for bid in trace))
+
+        #nx.draw(graph)
+        #plt.show()

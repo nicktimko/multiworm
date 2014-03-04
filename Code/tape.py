@@ -40,6 +40,7 @@ def tapetest():
     taper.load_data(show_progress=True)
     taper.find_candidates()
     taper.score_candidates()
+    taper.judge_candidates()
 
 if __name__ == '__main__':
     import cProfile as profile
