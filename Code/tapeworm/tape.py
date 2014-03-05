@@ -18,6 +18,7 @@ import networkx as nx
 
 import multiworm
 enumerate = multiworm.util.enumerate
+from multiworm.experiment.blob import parse as parse_blob
 from . import scoring
 
 FRAME_RATE = 14
@@ -30,17 +31,22 @@ WORM_ERROR = 10 #: Offset in pixels to add on max speed bounding "cone".
 
 def dist(a, b):
     """
-    Reurns the Euclidean distance between *a* and *b*.
+    Returns the Euclidean distance between `a` and `b`.
     """
     return np.linalg.norm(np.array(a, dtype=float) - np.array(b, dtype=float))
 
 def abs_centroid(centroid, reverse=False):
     """
-    OLD DOCS
-    # Looks through *collection* for ``c_isgood`` ``seq_centroid`` blob paths.
-    # Returns a list of NumPy arrays containing the absolute displacement at
-    # each time point (frame) from the start.
+    
+    Parameters
+    ----------
+    centroid : array_like
+        A sequence of X-Y coordinate pairs.
+    reverse : bool, optional
+        Reverse the centroid sequence before taking the absolute values
     """
+    if reverse:
+        centroid = centroid[::-1]
     centroid = np.array(centroid)
     centroid -= centroid[0]
 
@@ -68,25 +74,23 @@ def find_candidates(ends, starts, **params):
 
     Parameters
     ----------
-    ends : numpy.ndarray
-        Numpy structured array containing blob endpoints--where tracking was 
-        lost--with the following column names:
-            * `bid` - Blob ID
-            * `loc` - (X, Y) coordinates of where blob was lost
-            * `f` - Frame blob lost
+    ends, starts : numpy.ndarray
+        Numpy structured array containing blob end- and start-points--where 
+        tracking was lost and found--with the following column names:
 
-    starts : numpy.ndarray
-        As *ends*, but where blob tracking began.
+        * `bid` - Blob ID
+        * `loc` - X-Y coordinates of where blob was lost
+        * `f` - Frame blob lost/found
 
-    Keyword Parameters
-    ------------------
-    max_fgap : number
+    max_fgap : number, optional
         Maximum gap length to accept in frames.  The 'height' of the cone 
         to search in.
-    max_speed : number
+
+    max_speed : number, optional
         Maximum speed to include connections in pixels per frame.  The 
         'slope' of the cone.
-    error : number
+
+    error : number, optional
         Acommodate jitter in the track locations by accepting deviations of 
         up to this number of pixels at all times.
     """
@@ -119,6 +123,54 @@ def find_candidates(ends, starts, **params):
                         }
 
     return candidates
+
+class MultiblobExperiment(multiworm.Experiment):
+    """
+    A version of the MWT experiment reader that accepts an iterable of 
+    blob IDs to parse and patches them together into contiguous blobs
+    """
+    def _void_line(self, frame):
+        """
+        Returns a "null line" with the provided *frame* and corresponding
+        time.
+        """
+        time = self.frame_times[frame]
+        # the variable number of spaces between fields are in the actual 
+        # files but aren't documented why one or the other, and it never 
+        # se5
+        return '{frame} {time}  -1 -1  -1  0 0  0  -1 -1'.format(
+            frame=frame, time=time)
+
+    def _blob_lines(self, bids):
+        """
+        Accepts sequences of blob IDs in addition to single IDs, then 
+        yields them 
+        """
+        last_line = None
+        try:
+            bids = iter(bids)
+        except TypeError:
+            bids = [bids]
+
+        for bid in bids:
+            lines = super(MultiblobExperiment, self)._blob_lines(bid)
+            first_line = six.next(lines)
+
+            # fill in gaps
+            if last_line is not None:
+                # determine gap between loss/finding of consecutive blobs
+                end_frame = parse_blob([last_line])['frame'][0]
+                start_frame = parse_blob([first_line])['frame'][0]
+                if start_frame <= end_frame:
+                    raise ValueError("Specified blobs overlap or are not consecutive.")
+                # and fill
+                for missing_frame in range(end_frame + 1, start_frame):
+                    yield self._void_line(missing_frame)
+
+            for line in itertools.chain([first_line], lines):
+                yield line
+
+            last_line = line
 
 
 class Taper(object):
