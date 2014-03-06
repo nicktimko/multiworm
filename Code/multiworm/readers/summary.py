@@ -38,13 +38,13 @@ def parse(file_path):
     Parses the summary file at *filepath*, and returns a Numpy structured 
     array containing the following columns:
 
-        1. ID ('bid')
-        2. \*.blob file number ('file_no')
-        3. Blob byte offset within file ('offset')
-        4. Time found ('born')
-        5. Frame found ('born_f')
-        6. Time lost ('died')
-        7. Frame lost ('died_f')
+        1. `bid`: ID
+        2. `file_no`: \*.blob file number
+        3. `offset`: Blob byte offset within file
+        4. `born`: Time found
+        5. `born_f`: Frame found
+        6. `died`: Time lost
+        7. `died_f`: Frame lost
     """
     blobs_summary = defaultdict(dict, {})
     section_delims = {'%': 'events', '%%': 'lost_and_found', '%%%': 'offsets'}
@@ -69,7 +69,7 @@ def parse(file_path):
                 raise MWTDataError("Malformed summary file, line with "
                         "invalid number of fields (<15)")
 
-            # split up the remaining data
+            # split up the remaining data into whatever section
             data = {'events': [], 'lost_and_found': [], 'offsets': []}
             section = None
             for element in line[15:]:

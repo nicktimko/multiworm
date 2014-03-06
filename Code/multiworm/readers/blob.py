@@ -19,12 +19,15 @@ def parse(lines):
     Consumes a provided *lines* iterable and generates two dictionaries; the 
     first containing the basic information, packaged in lists with keys:
 
-      * `frame`: Video frame number
+      * `frame`: Image number
       * `time`: Real time since beginning of experiment
-      * `centroid`: Blob center of "mass"
-      * `area`: Area of blob
-      * `std_vector`:
-      * `std_ortho`:
+      * `centroid`: Blob center of mass
+      * `area`: Pixel area of blob
+      * `std_vector`: Vector pointing along the long axis of the object with 
+        length equal to the standard deviation of the pixels along that 
+        axis.
+      * `std_ortho`: The standard deviation of pixel positions orthogonal 
+        to the above vector
       * `size`: Rectangular size of the blob as determined by MWT
 
     The other dictionary contains geometry information, and can be missing 
@@ -99,7 +102,7 @@ GEO_FIELDS = dtype([
 def parse_np(lines):
     """
     **UNIMPLEMENTED**
-    
+
     Consumes a provided *payload* string and generates two arrays for each
     block of data in it. The first contains the basic information,
     guaranteed in each frame.  Column fields in first array:

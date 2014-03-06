@@ -15,8 +15,8 @@ import re
 
 import numpy as np
 
-from . import blob, summary
-from ..util import multifilter, multifilter_block, MWTDataError
+from .readers import blob, summary
+from .util import multifilter, multifilter_block, MWTDataError
 
 
 class Experiment(object):
@@ -160,7 +160,8 @@ class Experiment(object):
 
     def all_blobs(self, parser=None):
         """
-        Generator that parses and yields all the blobs in the summary data.
+        Generator that parses and yields all the blobs in the summary data 
+        using :func:`parse_blob`.
         """
         for bid in self.blobs_summary['bid']:
             yield bid, self.parse_blob(bid, parser=parser)
@@ -169,19 +170,20 @@ class Experiment(object):
     def good_blobs(self, parser=None):
         """
         Generator that produces filtered blobs.  You could route the output 
-        to a database, memory, or whereever.
+        to a database, memory, or whereever.  See :func:`parse_blob` for how 
+        the blobs are parsed.
         """
         for blob in multifilter(self.filters, self.all_blobs(parser=parser)):
             yield blob
             blob = None # free mem
 
-    def load_blobs(self):
-        """
-        Loads all blobs into memory.  Probably will crash for a typical 
-        experiment if not a 64-bit OS with a healthy amount of RAM.
-        """
-        for bid, blob in self.good_blobs():
-            self.blobs_data[bid] = blob
+    # def load_blobs(self):
+    #     """
+    #     Loads all blobs into memory.  Probably will crash for a typical 
+    #     experiment if not a 64-bit OS with a healthy amount of RAM.
+    #     """
+    #     for bid, blob in self.good_blobs():
+    #         self.blobs_data[bid] = blob
 
     def progress(self):
         return self.blobs_parsed, self.max_blobs

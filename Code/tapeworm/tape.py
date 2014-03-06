@@ -18,7 +18,7 @@ import networkx as nx
 
 import multiworm
 enumerate = multiworm.util.enumerate
-from multiworm.experiment.blob import parse as parse_blob
+from multiworm.readers.blob import parse as parse_blob
 from . import scoring
 
 FRAME_RATE = 14
@@ -126,8 +126,13 @@ def find_candidates(ends, starts, **params):
 
 class MultiblobExperiment(multiworm.Experiment):
     """
-    A version of the MWT experiment reader that accepts an iterable of 
-    blob IDs to parse and patches them together into contiguous blobs
+    A version of the MWT experiment reader 
+    (:class:`multiworm.experiment.Experiment`) that accepts an 
+    iterable of blob IDs to parse and patches them together into contiguous 
+    blobs.
+
+    The caller is responsible for attaching the relevant multiblob metadata 
+    to the output from :func:`parse_blob`.
     """
     def _void_line(self, frame):
         """
@@ -290,6 +295,9 @@ class Taper(object):
 
         for trace in patched_segments:
             print(' -> '.join(str(bid) for bid in trace))
+
+    def yield_candidates(self):
+        pass
 
         #nx.draw(graph)
         #plt.show()
