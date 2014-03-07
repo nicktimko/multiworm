@@ -21,8 +21,8 @@ setup(name='multiworm',
     ],
     install_requires=[
         'six>=1.5.2',
-        #'numpy>=1.6.1',
-        #'scipy>=0.11.0',
+        'numpy>=1.8.0',
+        'scipy>=0.11.0',
         #'matplotlib>=1.2.1',
 
     ],

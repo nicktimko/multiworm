@@ -12,7 +12,7 @@ from six.moves import (zip, filter, map, reduce, input, range)
 import numpy as np
 import scipy.stats as sps
 import scipy.interpolate as spi
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 KDE_SAMPLES = 1000 #: Default number of samples to take along KDE distribution
 
@@ -46,25 +46,25 @@ class DisplacementScorer(object):
 
         self.score_interp = spi.RectBivariateSpline(frame_gaps, distances, self.scores)
 
-    def show(self):
-        fig, ax = plt.subplots()
-        #colormap = plt.cm.gist_ncar
-        #ax.set_color_cycle([colormap(i) for i in 
-        #        np.linspace(0, 0.9, len(self.displacements))])
+    # def show(self):
+    #     fig, ax = plt.subplots()
+    #     #colormap = plt.cm.gist_ncar
+    #     #ax.set_color_cycle([colormap(i) for i in 
+    #     #        np.linspace(0, 0.9, len(self.displacements))])
 
-        #for row in self.displacements:
-        #    plt.plot(row)
+    #     #for row in self.displacements:
+    #     #    plt.plot(row)
 
-        dgap = np.linspace(*self.distance_domain, num=400)
-        fgap = np.linspace(*self.frame_gap_domain, num=400)
-        #fgap_v, dgap_v = np.meshgrid(fgap, dgap, squeeze=True)
-        #import pdb;pdb.set_trace()
+    #     dgap = np.linspace(*self.distance_domain, num=400)
+    #     fgap = np.linspace(*self.frame_gap_domain, num=400)
+    #     #fgap_v, dgap_v = np.meshgrid(fgap, dgap, squeeze=True)
+    #     #import pdb;pdb.set_trace()
 
-        score = self(fgap, dgap)
-        ax.imshow(score)
-        #print(score)
+    #     score = self(fgap, dgap)
+    #     ax.imshow(score)
+    #     #print(score)
 
-        #plt.show()
+    #     #plt.show()
 
     def __call__(self, fgap, dgap):
         """

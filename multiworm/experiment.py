@@ -15,9 +15,9 @@ import re
 
 import numpy as np
 
-from .readers import blob, summary
-from .util import multifilter, multifilter_block, MWTDataError
-
+from .core import MWTDataError
+from .readers import blob, summary, image
+from .util import multifilter, multifilter_block
 
 class Experiment(object):
     """
@@ -47,42 +47,21 @@ class Experiment(object):
 
     def _find_summary_file(self):
         """
-        Find blobs files and verify uniqueness
+        Locate summary file
         """
-        try:
-            summaries = glob.glob(os.path.join(self.data_path, '*.summary'))
-            if len(summaries) > 1:
-                raise MWTDataError("Multiple summary files in target path.")
-            self.summary = summaries[0]
-        except IndexError:
-            raise MWTDataError("Could not find summary file in target path.")
-
-        self.basename = os.path.splitext(os.path.basename(self.summary))[0]
+        self.summary, self.basename = summary.find(self.data_path)
 
     def _find_blobs_files(self):
         """
-        Find blobs files and verify consecutiveness
+        Locate blobs files
         """
-        self.blobs_files = sorted(glob.glob(os.path.join(
-                self.data_path, self.basename + '_?????k.blobs')))
-        for i, fn in enumerate(self.blobs_files):
-            expected_fn = '{}_{:05}k.blobs'.format(self.basename, i)
-            if not fn.endswith(expected_fn):
-                raise MWTDataError("Experiment data missing a consecutive "
-                        "blobs file. ({})".format(expected_fn))
+        self.blobs_files = blob.find(self.data_path, self.basename)
 
     def _find_images(self):
         """
-        Find related images and store them indexed by seconds (and fractions 
-        thereof)
+        Locate images
         """
-        self.image_files = {}
-        image_re_mask = re.compile(re.escape(self.basename) 
-                + r'(?P<frame>[0-9]*)\.png$')
-        for image in glob.glob(os.path.join(self.data_path, self.basename + '*.png')):
-            match = image_re_mask.search(image)
-            frame_num = match.group('frame')
-            self.image_files[int('0' + frame_num) / 1000] = image
+        self.image_files = image.find(self.data_path, self.basename)
 
     def add_summary_filter(self, f):
         """
@@ -186,4 +165,12 @@ class Experiment(object):
     #         self.blobs_data[bid] = blob
 
     def progress(self):
+        """
+        A crude indicator of progress as blobs are processed.  
+
+        Returns the number of blobs parsed (including those filtered out) out 
+        of the total number of blobs that will be.  If called after every 
+        output from :func:`good_blobs`, and there are any filters that have 
+        an effect, the first number will skip.
+        """
         return self.blobs_parsed, self.max_blobs

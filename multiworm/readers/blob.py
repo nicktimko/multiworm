@@ -8,11 +8,30 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
+import os.path
+import glob
 from collections import defaultdict
 
 import numpy as np
 
+from ..core import MWTDataError
 from ..util import alternate, dtype
+
+def find(directory, basename):
+    """
+    Find all \*.blobs files in the given *path* with the specified *basename* 
+    and verifies consecutiveness.  Returns a list of paths.
+    """
+    blobs_files = sorted(glob.iglob(os.path.join(
+            directory, basename + '_?????k.blobs')))
+
+    for i, fn in enumerate(blobs_files):
+        expected_fn = '{}_{:05}k.blobs'.format(basename, i)
+        if not fn.endswith(expected_fn):
+            raise MWTDataError("Experiment data missing a consecutive "
+                    "blobs file. ({})".format(expected_fn))
+
+    return blobs_files
 
 def parse(lines):
     """
@@ -100,6 +119,7 @@ GEO_FIELDS = dtype([
     ])
 
 def parse_np(lines):
+    ''
     """
     **UNIMPLEMENTED**
 

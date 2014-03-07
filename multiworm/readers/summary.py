@@ -8,20 +8,14 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
+import os.path
+import glob
 from collections import defaultdict
 
 import numpy as np
 
-from ..util import alternate, dtype, MWTDataError
-
-# def parse_line_segment(line_segment):
-#     # line segments ususally contain an unspecified number of paired values.
-#     # this parses the paired values and returns them as two lists, part_a and part_b        
-#     elements = line_segment.split()
-#     if len(elements) % 2:
-#         raise ValueError('Odd number of elements when split.')
-
-#     return alternate(elements)
+from ..core import MWTDataError
+from ..util import alternate, dtype
 
 SUMMARY_FIELDS = dtype([
         ('bid', 'int32'),
@@ -32,6 +26,19 @@ SUMMARY_FIELDS = dtype([
         ('died', 'float64'),
         ('died_f', 'int32'),
     ])
+
+def find(directory):
+    try:
+        summaries = glob.glob(os.path.join(directory, '*.summary'))
+        if len(summaries) > 1:
+            raise core.MWTDataError("Multiple summary files in target path.")
+        summary = summaries[0]
+    except IndexError:
+        raise core.MWTDataError("Could not find summary file in target path.")
+
+    basename = os.path.splitext(os.path.basename(summary))[0]
+
+    return summary, basename
 
 def parse(file_path):
     """
@@ -58,7 +65,7 @@ def parse(file_path):
             time = float(line[1])
 
             if frame != i:
-                raise MWTDataError("Error in summary file, line has "
+                raise core.MWTDataError("Error in summary file, line has "
                         "unexpected frame number.")
 
             frame_times.append(time)
@@ -66,7 +73,7 @@ def parse(file_path):
             if len(line) == 15:
                 continue
             elif len(line) < 15:
-                raise MWTDataError("Malformed summary file, line with "
+                raise core.MWTDataError("Malformed summary file, line with "
                         "invalid number of fields (<15)")
 
             # split up the remaining data into whatever section

@@ -21,3 +21,4 @@ venv[^/]*/                  # virtualenvs (any folder prefixed with "venv")
 
 ## Builds
 _build/                     # Sphinx
+build/                      # sometimes pip

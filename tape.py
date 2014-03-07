@@ -42,6 +42,9 @@ def tapetest():
     taper.score_candidates()
     taper.judge_candidates()
 
+    for i, _ in enumerate(taper.yield_candidates()):
+        print(i, end='')
+
 if __name__ == '__main__':
     import cProfile as profile
     #command = "main()"

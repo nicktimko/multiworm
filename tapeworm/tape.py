@@ -13,8 +13,6 @@ import itertools
 import math
 
 import numpy as np
-import matplotlib.pyplot as plt
-import networkx as nx
 
 import multiworm
 enumerate = multiworm.util.enumerate
@@ -29,15 +27,17 @@ MAX_WORM_SPEED = 1.37 #: Worms move at some finite speed, measured in px/frame.
 MAX_OBS_FRAC = 0.90 #: Assume that the observed worms were only moving this fraction of theoretical maximum
 WORM_ERROR = 10 #: Offset in pixels to add on max speed bounding "cone".
 
-def dist(a, b):
+def euclid(a, b):
     """
     Returns the Euclidean distance between `a` and `b`.
     """
     return np.linalg.norm(np.array(a, dtype=float) - np.array(b, dtype=float))
 
-def abs_centroid(centroid, reverse=False):
+def absolute_displacement(centroid, reverse=False):
     """
-    
+    Given a sequence of X-Y coordinates, return the absolute distance from 
+    each point to the first point.
+
     Parameters
     ----------
     centroid : array_like
@@ -93,6 +93,14 @@ def find_candidates(ends, starts, **params):
     error : number, optional
         Acommodate jitter in the track locations by accepting deviations of 
         up to this number of pixels at all times.
+
+    Returns
+    -------
+    candidates : dict
+        A dictionary with all end blob IDs as keys, and a dictionary of
+        possible starts as values.  In the latter dictionary, keys are IDs
+        and the value is a third dictionary with the fields `d` containing 
+        the distance gap, and `f` with the frame gap.
     """
     p = {
         'max_fgap': MAX_FRAME_GAP,
@@ -112,7 +120,7 @@ def find_candidates(ends, starts, **params):
                 )]:
             b_bid = int(blob_b['bid'])
             f_gap = blob_b['f'] - blob_a['f']
-            d_gap = dist(blob_a['loc'], blob_b['loc'])
+            d_gap = euclid(blob_a['loc'], blob_b['loc'])
 
             # check if it's in the 'cone'
             if (d_gap <= p['error'] + f_gap * p['max_speed']):
@@ -180,7 +188,7 @@ class MultiblobExperiment(multiworm.Experiment):
 
 class Taper(object):
     def __init__(self, path, min_move=2, min_time=10, horizon=50):
-        self.plate = multiworm.Experiment(path)
+        self.plate = MultiblobExperiment(path)
         self.plate.add_summary_filter(multiworm.filters.summary_lifetime_minimum(min_time))
         self.plate.add_filter(multiworm.filters.relative_move_minimum(min_move))
 
@@ -223,7 +231,6 @@ class Taper(object):
         self.ends = self._allocate_zeros(dtype=terminal_fields)
         displacements = []
 
-        #for i, blob in enumerate(itertools.islice(self.plate.good_blobs(), 100)):
         for i, blob in enumerate(self.plate.good_blobs()):
             bid, bdata = blob
             bdata = self._condense_blob(bdata)
@@ -231,7 +238,7 @@ class Taper(object):
 
             self.starts[i] = bid, bdata['born_at'], bdata['born_f']
             self.ends[i] = bid, bdata['died_at'], bdata['died_f']
-            displacements.append(abs_centroid(bdata['centroid']))
+            displacements.append(absolute_displacement(bdata['centroid']))
 
             if show_progress:
                 done, total = self.plate.progress()
@@ -267,37 +274,42 @@ class Taper(object):
                     ))
 
     def judge_candidates(self, log_threshold=-2):
-        graph = nx.DiGraph()
-        patched_segments = []
+        """
+        Using the scores, determine how to patch worm segments together.
+        """
+        self.patched_segments = []
         for lost_bid, connections in six.iteritems(self.candidates):
             hi_scorer = 0
             hi_score = -np.inf
             for found_bid, connection in six.iteritems(connections):
-                #graph.add_edge(lost_bid, found_bid, weight=connection['score'])
                 if connection['score'] > hi_score:
                     hi_score = connection['score']
                     hi_scorer = found_bid
 
             # look if there are any matching ends
-            for trace in patched_segments:
+            for trace in self.patched_segments:
                 if hi_score >= log_threshold:
                     if trace[-1] == lost_bid:
                         trace.append(hi_scorer)
                         break
-                    #graph.add_edge(lost_bid, hi_scorer)
                 else:
                     break
             # if nothing found, start a new segment
             else:
                 # ignore '0' segment
                 if hi_scorer:
-                    patched_segments.append([lost_bid, hi_scorer])
+                    self.patched_segments.append([lost_bid, hi_scorer])
 
-        for trace in patched_segments:
+        for trace in self.patched_segments:
             print(' -> '.join(str(bid) for bid in trace))
 
     def yield_candidates(self):
-        pass
-
-        #nx.draw(graph)
-        #plt.show()
+        """
+        Generator that yields all patched segments
+        """
+        for trace in self.patched_segments:
+            patched = self.plate.parse_blob(trace)
+            if len(trace) > 1:
+                patched['segments'] = trace
+            yield patched
+            patched = None # save mem

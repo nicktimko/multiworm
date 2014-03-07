@@ -7,12 +7,6 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
-class MWTDataError(Exception):
-    """
-    Generic Error class for something wrong with the MWT output data
-    """
-    pass
-
 def multifilter(filters, iterable):
     """
     Like the builtin filter(), but takes an iterable of functions for the 

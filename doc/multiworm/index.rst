@@ -5,20 +5,42 @@
 Experiment Reader
 =================
 
-.. automodule:: multiworm.experiment.experiment
+.. automodule:: multiworm.experiment
     :members:
 
 
-MWT File Format Parsers
-=======================
+MWT Data File Readers
+=====================
 
 Summary File
 ------------
-.. automodule:: multiworm.experiment.summary
+.. automodule:: multiworm.readers.summary
     :members:
 
 
 Blobs File
 ----------
-.. automodule:: multiworm.experiment.blob
+.. automodule:: multiworm.readers.blob
     :members:
+
+
+Blob Filters
+============
+
+.. automodule:: multiworm.filters
+    :members:
+
+
+Support Functionality
+=====================
+
+Core
+----
+.. automodule:: multiworm.core
+    :members:
+
+Generic Python Utilities
+------------------------
+.. automodule:: multiworm.util
+    :members:
+
