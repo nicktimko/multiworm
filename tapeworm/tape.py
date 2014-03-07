@@ -187,8 +187,35 @@ class MultiblobExperiment(multiworm.Experiment):
 
 
 class Taper(object):
-    def __init__(self, path, min_move=2, min_time=10, horizon=50):
-        self.plate = MultiblobExperiment(path)
+    """
+    Attach disconnected blob tracks to one another.
+
+    After initialization, add additional filters if desired to the ``plate``
+    :class:`multiworm.experiment.Experiment` member object, then
+    :func:`load_data`.  
+
+    Parameters
+    ----------
+    directory : str
+        Directory of the MWT data set to process.
+
+    Keyword Arguments
+    -----------------
+    min_move : float
+        Minimum amount individual blobs needs to traverse (bounding box 
+        linear size) relative to their average body length prior to 
+        concatenating.  Default: **2**
+
+    min_time : float
+        Minimum time in seconds individual blob traces need to exist.
+        Default: **10**
+
+    horizon : float
+        How far out in seconds to consider blob joins. 
+        Default: **50**
+    """
+    def __init__(self, directory, min_move=2, min_time=10, horizon=50):
+        self.plate = MultiblobExperiment(directory)
         self.plate.add_summary_filter(multiworm.filters.summary_lifetime_minimum(min_time))
         self.plate.add_filter(multiworm.filters.relative_move_minimum(min_move))
 
@@ -223,7 +250,8 @@ class Taper(object):
 
     def load_data(self, show_progress=False):
         """
-        Call to load data from the experiment and set up scoring method
+        Parse, filter, and determine a scoring method for blobs.  Optionally
+        `show_progress` of the process, as this is the longest method call.
         """
         self.plate.load_summary()
         terminal_fields = [('bid', 'int32'), ('loc', '2int16'), ('f', 'int32')]
@@ -249,7 +277,7 @@ class Taper(object):
                 sys.stdout.flush()
 
         if show_progress:
-            print()
+            print() # just a newline to move on from the bar graph.
 
         # crop arrays
         self.starts.resize(i + 1)
@@ -277,6 +305,7 @@ class Taper(object):
         """
         Using the scores, determine how to patch worm segments together.
         """
+        self.unpatched_segments = set(self.candidates)
         self.patched_segments = []
         for lost_bid, connections in six.iteritems(self.candidates):
             hi_scorer = 0
@@ -291,6 +320,7 @@ class Taper(object):
                 if hi_score >= log_threshold:
                     if trace[-1] == lost_bid:
                         trace.append(hi_scorer)
+                        self.unpatched_segments.remove(hi_scorer)
                         break
                 else:
                     break
@@ -299,6 +329,8 @@ class Taper(object):
                 # ignore '0' segment
                 if hi_scorer:
                     self.patched_segments.append([lost_bid, hi_scorer])
+                    self.unpatched_segments.remove(lost_bid)
+                    self.unpatched_segments.remove(hi_scorer)
 
         for trace in self.patched_segments:
             print(' -> '.join(str(bid) for bid in trace))
@@ -307,9 +339,29 @@ class Taper(object):
         """
         Generator that yields all patched segments
         """
+        for bid in self.unpatched_segments:
+            yield self.plate.parse_blob(bid)
+
         for trace in self.patched_segments:
             patched = self.plate.parse_blob(trace)
-            if len(trace) > 1:
-                patched['segments'] = trace
+            patched['segments'] = trace
             yield patched
             patched = None # save mem
+
+    def ThePeterProcedure(self):
+        """
+        Do all the things.  e.g. 
+
+        ::
+
+            for blob in tapeworm.Taper(mypath).ThePeterProcedure():
+                ... # do something with 'blob'
+        """
+        self.load_data()
+        self.find_candidates()
+        self.score_candidates()
+        self.judge_candidates()
+
+        cans = self.yield_candidates()
+        while True:
+            yield six.next(cans)

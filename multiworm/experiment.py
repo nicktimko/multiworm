@@ -28,8 +28,8 @@ class Experiment(object):
     :func:`add_filter`.  Then call :func:`load_summary` to index the 
     location of all possible good blobs.
     """
-    def __init__(self, data_path):
-        self.data_path = data_path
+    def __init__(self, directory):
+        self.directory = directory
         self._find_summary_file()
         self._find_blobs_files()
         self._find_images()
@@ -49,19 +49,19 @@ class Experiment(object):
         """
         Locate summary file
         """
-        self.summary, self.basename = summary.find(self.data_path)
+        self.summary, self.basename = summary.find(self.directory)
 
     def _find_blobs_files(self):
         """
         Locate blobs files
         """
-        self.blobs_files = blob.find(self.data_path, self.basename)
+        self.blobs_files = blob.find(self.directory, self.basename)
 
     def _find_images(self):
         """
         Locate images
         """
-        self.image_files = image.find(self.data_path, self.basename)
+        self.image_files = image.find(self.directory, self.basename)
 
     def add_summary_filter(self, f):
         """
@@ -123,7 +123,9 @@ class Experiment(object):
         bid : int
             The blob ID to parse.
 
-        parser : callable, optional
+        Keyword Arguments
+        -----------------
+        parser : callable
             A function that accepts one positional argument, a generator 
             that yields all data lines from blob `bid`.  The default parser
             is :func:`.blob.parse`.
