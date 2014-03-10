@@ -42,7 +42,10 @@ def absolute_displacement(centroid, reverse=False):
     ----------
     centroid : array_like
         A sequence of X-Y coordinate pairs.
-    reverse : bool, optional
+
+    Keyword Arguments
+    -----------------
+    reverse : bool
         Reverse the centroid sequence before taking the absolute values
     """
     if reverse:
@@ -82,15 +85,17 @@ def find_candidates(ends, starts, **params):
         * `loc` - X-Y coordinates of where blob was lost
         * `f` - Frame blob lost/found
 
-    max_fgap : number, optional
+    Keyword Arguments
+    -----------------
+    max_fgap : number
         Maximum gap length to accept in frames.  The 'height' of the cone 
         to search in.
 
-    max_speed : number, optional
+    max_speed : number
         Maximum speed to include connections in pixels per frame.  The 
         'slope' of the cone.
 
-    error : number, optional
+    error : number
         Acommodate jitter in the track locations by accepting deviations of 
         up to this number of pixels at all times.
 
@@ -131,6 +136,67 @@ def find_candidates(ends, starts, **params):
                         }
 
     return candidates
+
+def join_segments(diedges, nodes=None):
+    """
+    Join together directed edges into subgraphs.
+
+    Parameters
+    ----------
+    diedges : iterable
+        An iterable of directed edges to connect.  Maximum of one child and 
+        one parent per node.
+
+    Keyword Arguments
+    -----------------
+    nodes : set
+        If a set of nodes is provided, the return value will include the set 
+        of nodes that weren't included in any of the *traces*.
+
+    Returns
+    -------
+    traces : list
+        Directed subgraphs
+    free_nodes : set
+        Only returned if *nodes* is provided.
+    """
+    traces = []
+
+    # value checks
+    starts = set(edge[0] for edge in diedges)
+    ends = set(edge[1] for edge in diedges)
+    if len(starts) != len(diedges):
+        raise ValueError("Node has more than one child.")
+    if len(ends) != len(diedges):
+        raise ValueError("Node has more than one parent.")
+
+    if nodes:
+        for edge in diedges:
+            for node in edge:
+                if node not in nodes:
+                    raise ValueError("Edge contains node not in 'nodes'")
+
+    # stitch all edges together
+    for edge in diedges:
+        for trace in traces:
+            if trace[0] == edge[-1]:
+                trace.insert(0, edge[0])
+                break
+            elif trace[-1] == edge[0]:
+                trace.append(edge[-1])
+                break
+        else:
+            traces.append(list(edge))
+
+    # remove joined segment nodes from the set to produce 'free' nodes.
+    if nodes:
+        for trace in traces:
+            for node in trace:
+                nodes.remove(node)
+        return traces, nodes
+
+    return traces
+
 
 class MultiblobExperiment(multiworm.Experiment):
     """
@@ -305,32 +371,29 @@ class Taper(object):
         """
         Using the scores, determine how to patch worm segments together.
         """
-        self.unpatched_segments = set(self.candidates)
-        self.patched_segments = []
+        blob_ids = set(self.candidates)
+        trace_edges = {}
         for lost_bid, connections in six.iteritems(self.candidates):
             hi_scorer = 0
             hi_score = -np.inf
             for found_bid, connection in six.iteritems(connections):
                 if connection['score'] > hi_score:
+                    hi_score_bid = found_bid
                     hi_score = connection['score']
-                    hi_scorer = found_bid
 
-            # look if there are any matching ends
-            for trace in self.patched_segments:
-                if hi_score >= log_threshold:
-                    if trace[-1] == lost_bid:
-                        trace.append(hi_scorer)
-                        self.unpatched_segments.remove(hi_scorer)
-                        break
-                else:
-                    break
-            # if nothing found, start a new segment
-            else:
-                # ignore '0' segment
-                if hi_scorer:
-                    self.patched_segments.append([lost_bid, hi_scorer])
-                    self.unpatched_segments.remove(lost_bid)
-                    self.unpatched_segments.remove(hi_scorer)
+            if hi_score >= log_threshold:
+                # dictionary does a reverse-lookup of the connection and 
+                # checks if a prior connection to a child was any better.
+                try:
+                    if trace_edges[hi_score_bid][1] < hi_score:
+                        trace_edges[hi_score_bid] = (lost_bid, hi_score)
+                except KeyError:
+                    trace_edges[hi_score_bid] = (lost_bid, hi_score)
+
+        # convert the awkward dictionary to a simple list of edges
+        trace_edges = [(v[0], k) for k, v in six.iteritems(trace_edges)]
+
+        self.patched_segments, self.unpatched_segments = join_segments(trace_edges, blob_ids)
 
         for trace in self.patched_segments:
             print(' -> '.join(str(bid) for bid in trace))
@@ -365,3 +428,9 @@ class Taper(object):
         cans = self.yield_candidates()
         while True:
             yield six.next(cans)
+
+if __name__ == '__main__':
+    edges = [(1,2),(2,3),(4,5),(6,7),(8,6)]
+    nodes = set(range(10))
+
+    print(join_segments(edges, nodes))
