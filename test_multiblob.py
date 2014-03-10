@@ -43,7 +43,7 @@ def main(argv=None):
         f_no = patched_blob['frame'][0]
         for frame in patched_blob['frame']:
             if f_no != frame:
-                print("ERROR: Discontinuity from frame {} to {}".format(f_no-1, frame))
+                print("ERROR: Discontinuity from frame {0} to {1}".format(f_no-1, frame))
                 f_no = frame
             f_no += 1
     print('Done.')

@@ -104,8 +104,8 @@ class Experiment(object):
         file_no, offset = self.blobs_summary[['file_no', 'offset']][self.bs_mapping[bid]]
         with open(self.blobs_files[file_no], 'r') as f:
             f.seek(offset)
-            if six.next(f).rstrip() != '% {}'.format(bid):
-                raise MWTDataError("File number/offset for blob {} was "
+            if six.next(f).rstrip() != '% {0}'.format(bid):
+                raise MWTDataError("File number/offset for blob {0} was "
                         "incorrect.".format(bid))
             for line in f:
                 if line[0] != '%':

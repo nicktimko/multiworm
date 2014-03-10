@@ -337,13 +337,16 @@ class Taper(object):
             if show_progress:
                 done, total = self.plate.progress()
                 percent = 100*done/total
-                print(' Loading... [ {:-<50s} ] {}/{} ({:.1f}%)      '.format(
-                        '#'*int(percent//2), done, total, percent), 
-                        end='\r')
+                print('\r Loading... '
+                        '[ {0:-<50s} ] {1:>5d}/{2:<5d} ({3:5.1f}%) '.format(
+                            '#'*int(percent//2), done, total, percent), 
+                        end='')
                 sys.stdout.flush()
 
         if show_progress:
-            print() # just a newline to move on from the bar graph.
+            # doesn't always show 100% (skips some numbers), plus we need a 
+            # newline anyway
+            print(' ... Done!')
 
         # crop arrays
         self.starts.resize(i + 1)
@@ -375,7 +378,7 @@ class Taper(object):
         trace_edges = {}
         for lost_bid, connections in six.iteritems(self.candidates):
             hi_scorer = 0
-            hi_score = -np.inf
+            hi_score = float('-inf')
             for found_bid, connection in six.iteritems(connections):
                 if connection['score'] > hi_score:
                     hi_score_bid = found_bid

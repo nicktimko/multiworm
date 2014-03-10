@@ -26,10 +26,10 @@ def find(directory, basename):
             directory, basename + '_?????k.blobs')))
 
     for i, fn in enumerate(blobs_files):
-        expected_fn = '{}_{:05}k.blobs'.format(basename, i)
+        expected_fn = '{0}_{1:05}k.blobs'.format(basename, i)
         if not fn.endswith(expected_fn):
             raise MWTDataError("Experiment data missing a consecutive "
-                    "blobs file. ({})".format(expected_fn))
+                    "blobs file. ({0})".format(expected_fn))
 
     return blobs_files
 

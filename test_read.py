@@ -41,7 +41,7 @@ def memprint():
     m = memory_usage()
     peak = m['peak']/1024
     rss = m['rss']/1024
-    return 'Peak: {:6.1f} MB, Current: {:6.1f} MB'.format(peak, rss)
+    return 'Peak: {0:6.1f} MB, Current: {1:6.1f} MB'.format(peak, rss)
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -59,7 +59,7 @@ def main():
         t, tdelta = now, now - t
 
         bid, bdata = blob
-        print(memprint(), 'ID: {:5d}, t: {:7.1f} ms'.format(bid, tdelta * 1000))
+        print(memprint(), 'ID: {0:5d}, t: {1:7.1f} ms'.format(bid, tdelta * 1000))
         ids.append(bid)
         blob, bdata = None, None
 

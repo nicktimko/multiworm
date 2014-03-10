@@ -33,10 +33,6 @@ def tapetest():
     args = parser.parse_args()
 
     taper = tapeworm.Taper(TEST_DATA_SETS[args.test_set])
-
-    #blob_generator = 
-    #taper.plate.good_blobs = lambda: itertools.islice(taper.plate.good_blobs(), 4)
-
     taper.load_data(show_progress=True)
     taper.find_candidates()
     taper.score_candidates()

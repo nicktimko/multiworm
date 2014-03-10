@@ -33,7 +33,7 @@ def main():
     try:
         print(where(args.data_set))
     except KeyError:
-        print('Named data set "{}" not found in lookup file.'.format(args.data_set), file=sys.stderr)
+        print('Named data set "{0}" not found in lookup file.'.format(args.data_set), file=sys.stderr)
         return 1
 
 if __name__ == '__main__':

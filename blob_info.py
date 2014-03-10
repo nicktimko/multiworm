@@ -37,12 +37,12 @@ def main(argv=None):
     experiment = multiworm.Experiment(args.data_set)
     experiment.load_summary()
     if args.blob_id not in experiment.bs_mapping:
-        print('Blob ID {} not found.'.format(args.blob_id), file=sys.stderr)
+        print('Blob ID {0} not found.'.format(args.blob_id), file=sys.stderr)
         sys.exit(1)
 
     file_no, offset = experiment.blobs_summary[['file_no', 'offset']][experiment.bs_mapping[args.blob_id]]
-    print('Data in blobs file number {}, starting at byte {}'.format(file_no, offset))
-    print('Path: {}'.format(experiment.blobs_files[file_no]))
+    print('Data in blobs file number {0}, starting at byte {1}'.format(file_no, offset))
+    print('Path: {0}'.format(experiment.blobs_files[file_no]))
 
     if args.head_and_tail:
         head, tail = experiment.parse_blob(args.blob_id, head_and_tail)
@@ -50,19 +50,19 @@ def main(argv=None):
         print(tail)
     else:
         blob = experiment.parse_blob(args.blob_id)
-        print(' {:^25s} | {:^30s} '.format('Field', 'Data'))
+        print(' {0:^25s} | {1:^30s} '.format('Field', 'Data'))
         print(' ' + '-'* 65)
 
         def fld(fieldname, *data, **kwargs):
             joiner = kwargs.get('joiner', ', ')
             try:
                 datastr = joiner.join(
-                    ('{:.1f}' if type(pt) == float else '{:d}').format(pt)
+                    ('{0:.1f}' if type(pt) == float else '{0:d}').format(pt)
                     for pt in data)
             except TypeError:
                 datastr = str(data)
 
-            print(' {:25s} | {:s}'.format(fieldname, datastr))
+            print(' {0:25s} | {1:s}'.format(fieldname, datastr))
 
         life_s = blob['time'][-1] - blob['time'][0]
         life_f = blob['frame'][-1] - blob['frame'][0]
