@@ -277,10 +277,13 @@ class Taper(object):
         Default: **10**
 
     horizon : float
-        How far out in seconds to consider blob joins. 
-        Default: **50**
+        How far out in seconds to consider blob joins.
+        Default: **50**, which is borderline-overkill.
+
+    verbosity : int
+
     """
-    def __init__(self, directory, min_move=2, min_time=10, horizon=50):
+    def __init__(self, directory, min_move=2, min_time=10, horizon=50, verbosity=None):
         self.plate = MultiblobExperiment(directory)
         self.plate.add_summary_filter(multiworm.filters.summary_lifetime_minimum(min_time))
         self.plate.add_filter(multiworm.filters.relative_move_minimum(min_move))
@@ -355,14 +358,19 @@ class Taper(object):
         displacements = jagged_mask(displacements)
         self.scorer = scoring.DisplacementScorer(displacements)
 
-    def find_candidates(self, max_fgap=500):
+    def find_candidates(self, **kwargs):
         """
-        Finds all candidate joins within the given number of frames and 
-        distance.
+        Finds all candidate joins for the loaded data set.  See 
+        :func:`find_candidates` for accepted keyword arguments.
         """
-        self.candidates = find_candidates(self.ends, self.starts, max_fgap=max_fgap)
+        self.candidates = find_candidates(self.ends, self.starts, **kwargs)
 
-    def score_candidates(self):
+    def score_candidates(self):#, scorer=None):
+        """
+
+        """
+        # if scorer is None:
+        #     scorer = self.scorer
         for lost_bid, connections in six.iteritems(self.candidates):
             for found_bid, connection in six.iteritems(connections):
                 connection['score'] = math.log10(self.scorer(connection['f'], connection['d']).max())
@@ -373,18 +381,24 @@ class Taper(object):
     def judge_candidates(self, log_threshold=-2):
         """
         Using the scores, determine how to patch worm segments together.
+
+        Parameters
+        ----------
+        log_threshold : float
+            Minimum threshold (in logarithm, base-10) of score to accept as 
+            a connection from the 
         """
         blob_ids = set(self.candidates)
         trace_edges = {}
         for lost_bid, connections in six.iteritems(self.candidates):
-            hi_scorer = 0
+            hi_score_bid = 0
             hi_score = float('-inf')
             for found_bid, connection in six.iteritems(connections):
                 if connection['score'] > hi_score:
                     hi_score_bid = found_bid
                     hi_score = connection['score']
 
-            if hi_score >= log_threshold:
+            if hi_score_bid and hi_score >= log_threshold:
                 # dictionary does a reverse-lookup of the connection and 
                 # checks if a prior connection to a child was any better.
                 try:

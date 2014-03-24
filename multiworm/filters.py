@@ -21,6 +21,28 @@ def summary_lifetime_minimum(threshold):
         return summary_data[lifetimes >= threshold]
     return f
 
+def exists_in_frame(frame):
+    """
+    Returns a function that filters summary blob data by requiring it to 
+    exist on a specific *frame*.
+    """
+    def f(summary_data):
+        born_before = summary_data['born_f'] <= frame
+        died_after = summary_data['died_f'] >= frame
+        return summary_data[born_before & died_after]
+    return f
+
+def exists_at_time(time):
+    """
+    Returns a function that filters summary blob data by requiring it to 
+    exist at a specific *time*.
+    """
+    def f(summary_data):
+        born_before = summary_data['born'] <= time
+        died_after = summary_data['died'] >= time
+        return summary_data[born_before & died_after]
+    return f
+
 def _midline_length(points):
     """
     Calculates the length of a path connecting *points*.
@@ -48,6 +70,7 @@ def relative_move_minimum(threshold):
         return move_px >= size_px * threshold
 
     return f
+
 
 def area_minimum(threshold):
     """

@@ -9,8 +9,6 @@ import os.path
 import json
 import argparse
 
-import multiworm
-
 named_location = '%'
 
 data_file = os.path.join(os.path.dirname(__file__), 'data_sets.json')

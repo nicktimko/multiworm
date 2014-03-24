@@ -40,16 +40,23 @@ def main(argv=None):
         print('Blob ID {0} not found.'.format(args.blob_id), file=sys.stderr)
         sys.exit(1)
 
-    file_no, offset = experiment.blobs_summary[['file_no', 'offset']][experiment.bs_mapping[args.blob_id]]
+    file_no, offset = experiment.summary[['file_no', 'offset']][experiment.bs_mapping[args.blob_id]]
     print('Data in blobs file number {0}, starting at byte {1}'.format(file_no, offset))
+    #print('Summary: {0}'.format(experiment.summary))
     print('Path: {0}'.format(experiment.blobs_files[file_no]))
 
     if args.head_and_tail:
         head, tail = experiment.parse_blob(args.blob_id, head_and_tail)
         print(head)
         print(tail)
+
     else:
         blob = experiment.parse_blob(args.blob_id)
+        if blob is None:
+            print("Blob ID {} exists, but has no data.".format(args.blob_id), 
+                file=sys.stderr)
+            return
+
         print(' {0:^25s} | {1:^30s} '.format('Field', 'Data'))
         print(' ' + '-'* 65)
 
@@ -76,22 +83,3 @@ def main(argv=None):
 
 if __name__ == '__main__':
     sys.exit(main())
-
-'''
-
- Loading... [ ####---------------------------------------------- ] 99/1149 (8.6%)      
-    1 --> 1323  : f=217, d=292.0, log_score=1e-100
-    1 --> 1535  : f=443, d=568.4, log_score=0.000201218967721
-    8 --> 1323  : f=217, d=292.0, log_score=1e-100
-    8 --> 1535  : f=443, d=568.4, log_score=0.000201218967721
-   12 --> 1323  : f=217, d=292.0, log_score=1e-100
-   12 --> 1535  : f=443, d=568.4, log_score=0.000201218967721
-   16 --> 1323  : f=217, d=292.0, log_score=1e-100
-   16 --> 1535  : f=443, d=568.4, log_score=0.000201218967721
-   17 --> 1323  : f=217, d=292.0, log_score=1e-100
-   17 --> 1535  : f=443, d=568.4, log_score=0.000201218967721
-   23 --> 1323  : f=217, d=292.0, log_score=1e-100
-   23 --> 1535  : f=443, d=568.4, log_score=0.000201218967721
-   24 --> 1323  : f=217, d=292.0, log_score=1e-100
-
-'''

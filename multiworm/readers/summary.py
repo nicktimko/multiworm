@@ -98,7 +98,7 @@ def parse(file_path):
                 active_blobs.add(b)
             for b in lost_bids:
                 blobs_summary[b]['died'] = time
-                blobs_summary[b]['died_f'] = frame
+                blobs_summary[b]['died_f'] = frame - 1
                 active_blobs.discard(b)
 
         # wrap up blob ends with the time

@@ -16,12 +16,12 @@ def multifilter(filters, iterable):
         iterable = filter(f, iterable)
     return iterable
 
-def multifilter_block(filters, data):
+def multitransform(transforms, data):
     """
-    Like multifilter(), but filters the input *data* through all *filters* 
-    en masse.
+    Transforms *data* by passing it through all functions in *transforms*, 
+    in order.
     """
-    return reduce(lambda x, f: f(x), filters, data)
+    return reduce(lambda x, f: f(x), transforms, data)
 
 def alternate(seq):
     """

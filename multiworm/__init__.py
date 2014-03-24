@@ -5,3 +5,4 @@ from __future__ import (
 from .experiment import Experiment
 from . import filters
 from . import util
+from . import core

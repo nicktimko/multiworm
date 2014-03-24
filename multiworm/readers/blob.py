@@ -65,6 +65,7 @@ def parse(lines):
     """
     blob_info = defaultdict(list, {})
 
+    i = None
     for i, line in enumerate(lines):
         ld = line.split('%')
 
@@ -92,6 +93,10 @@ def parse(lines):
             blob_info['contour_start'].append((0, 0))
             blob_info['contour_encode_len'].append(None)
             blob_info['contour_encoded'].append(None)
+
+    # check if blob was empty
+    if i is None:
+        return None
 
     # prevent referencing non-existant fields
     blob_info.default_factory = None
@@ -182,3 +187,47 @@ def parse_np(lines):
             blob_info[i]['contour_encoded'] = ldc[3]
 
     return blob_info
+
+ENCODE_OFFSET = ord('0')
+STEPS = np.array([(-1, 0), (1, 0), (0, -1), (0, 1)])
+
+def decode_outline(start, n_points, encoded_outline):
+    """
+    Decodes the last four columns of data which represent the contour of 
+    the worm.
+
+    Parameters
+    ----------
+    start : coordinate pair
+        Starting X-Y coordinate of the encoded outline
+    n_points : int
+        Number of contour points encoded in *encoded_outline*
+    encoded_outline : str
+
+    """
+    if not n_points:
+        raise ValueError('Empty data passed.')
+
+    outline = np.empty((n_points + 1, 2), int)
+    outline[0] = start
+    remaining = n_points
+
+    for ch in encoded_outline:
+        byte = ord(ch) - ENCODE_OFFSET
+        if not (0 <= byte <= 63):
+            raise ValueError('({0}) is not in encoding range'.format(ch))
+
+        for i in reversed(range(3)):
+            if not remaining:
+                break
+            remaining -= 1
+
+            step = STEPS[(byte >> 2*i) & 0b11]
+            outline[n_points - remaining] = outline[n_points - remaining - 1] + step
+
+    return outline
+
+def encode_outline(outline):
+    """
+    Inverse of :func:`decode_outline`.  **NOT YET IMPLEMENTED**
+    """

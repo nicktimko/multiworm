@@ -17,7 +17,8 @@ import numpy as np
 
 from .core import MWTDataError
 from .readers import blob, summary, image
-from .util import multifilter, multifilter_block
+from .util import multifilter, multitransform
+from .filters import exists_in_frame, exists_at_time
 
 class Experiment(object):
     """
@@ -34,7 +35,7 @@ class Experiment(object):
         self._find_blobs_files()
         self._find_images()
 
-        self.blobs_summary = None
+        self.summary = None
         
         self.summary_filters = []
         self.filters = []
@@ -49,7 +50,7 @@ class Experiment(object):
         """
         Locate summary file
         """
-        self.summary, self.basename = summary.find(self.directory)
+        self.summary_file, self.basename = summary.find(self.directory)
 
     def _find_blobs_files(self):
         """
@@ -65,7 +66,7 @@ class Experiment(object):
 
     def add_summary_filter(self, f):
         """
-        Add a function `f` that can be passed a blobs_summary Numpy structured 
+        Add a function `f` that can be passed a summary Numpy structured 
         array and removes undesirable rows.
         """
         self.summary_filters.append(f)
@@ -86,22 +87,25 @@ class Experiment(object):
         Must be called prior to attempting to access any blob with 
         :func:`good_blobs`, :func:`parse_blob`, or the like.
         """
-        bs, self.frame_times = summary.parse(self.summary)
+        bs, self.frame_times = summary.parse(self.summary_file)
         if bs['file_no'].max() + 1 > len(self.blobs_files):
             raise MWTDataError("Summary file refers to missing blobs files.")
 
         # filter and create blob id mapping 
-        self.blobs_summary = multifilter_block(self.summary_filters, bs)
-        self.bs_mapping = summary.make_mapping(self.blobs_summary)
+        self.summary = multitransform(self.summary_filters, bs)
+        self.bs_mapping = summary.make_mapping(self.summary)
 
         # the maximum number of blobs we'll ever need to deal with
-        self.max_blobs = len(self.blobs_summary)
+        self.max_blobs = len(self.summary)
+
+    def blobs_in_frame(self, frame):
+        return exists_in_frame(frame)(self.summary)['bid']
 
     def _blob_lines(self, bid):
         """
         Generator that yields all lines of data for blob id `bid`.
         """
-        file_no, offset = self.blobs_summary[['file_no', 'offset']][self.bs_mapping[bid]]
+        file_no, offset = self.summary[['file_no', 'offset']][self.bs_mapping[bid]]
         with open(self.blobs_files[file_no], 'r') as f:
             f.seek(offset)
             if six.next(f).rstrip() != '% {0}'.format(bid):
@@ -144,7 +148,7 @@ class Experiment(object):
         Generator that parses and yields all the blobs in the summary data 
         using :func:`parse_blob`.
         """
-        for bid in self.blobs_summary['bid']:
+        for bid in self.summary['bid']:
             yield bid, self.parse_blob(bid, parser=parser)
             self.blobs_parsed += 1
 
@@ -152,7 +156,9 @@ class Experiment(object):
         """
         Generator that produces filtered blobs.  You could route the output 
         to a database, memory, or whereever.  See :func:`parse_blob` for how 
-        the blobs are parsed.
+        the blobs are parsed.  Note that the filters provided in 
+        :func:`add_filter` (if any) must be compatible with (accept) what 
+        the parser returns.
         """
         for blob in multifilter(self.filters, self.all_blobs(parser=parser)):
             yield blob
