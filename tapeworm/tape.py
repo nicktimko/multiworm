@@ -281,9 +281,9 @@ class Taper(object):
         Default: **50**, which is borderline-overkill.
 
     verbosity : int
-
+        How much to talk.  Accepts values from 0 to 1, inclusive.
     """
-    def __init__(self, directory, min_move=2, min_time=10, horizon=50, verbosity=None):
+    def __init__(self, directory, min_move=2, min_time=10, horizon=50, verbosity=0):
         self.plate = MultiblobExperiment(directory)
         self.plate.add_summary_filter(multiworm.filters.summary_lifetime_minimum(min_time))
         self.plate.add_filter(multiworm.filters.relative_move_minimum(min_move))
@@ -293,6 +293,7 @@ class Taper(object):
         self.starts = None # (bid, x, y, f)
         self.ends = None # (bid, x, y, f)
         self.displacements = None
+        self.verbosity = verbosity
 
     def _condense_blob(self, blob):
         """
@@ -317,10 +318,9 @@ class Taper(object):
             dtype = multiworm.util.dtype(dtype)
         return np.zeros((self.plate.max_blobs, width), dtype=dtype)
 
-    def load_data(self, show_progress=False):
+    def load_data(self):
         """
-        Parse, filter, and determine a scoring method for blobs.  Optionally
-        `show_progress` of the process, as this is the longest method call.
+        Parse, filter, and determine a scoring method for blobs.
         """
         self.plate.load_summary()
         terminal_fields = [('bid', 'int32'), ('loc', '2int16'), ('f', 'int32')]
@@ -337,7 +337,7 @@ class Taper(object):
             self.ends[i] = bid, bdata['died_at'], bdata['died_f']
             displacements.append(absolute_displacement(bdata['centroid']))
 
-            if show_progress:
+            if self.verbosity >= 1:
                 done, total = self.plate.progress()
                 percent = 100*done/total
                 print('\r Loading... '
@@ -346,7 +346,7 @@ class Taper(object):
                         end='')
                 sys.stdout.flush()
 
-        if show_progress:
+        if self.verbosity >= 1:
             # doesn't always show 100% (skips some numbers), plus we need a 
             # newline anyway
             print(' ... Done!')
@@ -358,27 +358,35 @@ class Taper(object):
         displacements = jagged_mask(displacements)
         self.scorer = scoring.DisplacementScorer(displacements)
 
-    def find_candidates(self, **kwargs):
+        self._find_candidates()
+        self._score_candidates()
+        self._judge_candidates()
+
+    def _find_candidates(self, **kwargs):
         """
         Finds all candidate joins for the loaded data set.  See 
-        :func:`find_candidates` for accepted keyword arguments.
+        :func:`find_candidates` for accepted keyword arguments and structure 
+        of the returned value.
         """
         self.candidates = find_candidates(self.ends, self.starts, **kwargs)
 
-    def score_candidates(self):#, scorer=None):
+    def _score_candidates(self, **kwargs):
         """
-
+        Compute the score for each candidate using self.scorer and add to 
+        the candidate dictionary as a 'score' field.
         """
-        # if scorer is None:
-        #     scorer = self.scorer
         for lost_bid, connections in six.iteritems(self.candidates):
             for found_bid, connection in six.iteritems(connections):
                 connection['score'] = math.log10(self.scorer(connection['f'], connection['d']).max())
-                print('{0:5d} --> {1:<5d} : f={2:3d}, d={3:5.1f}, log_score={4:.2f}'.format(
-                        lost_bid, found_bid, connection['f'], connection['d'], connection['score']
-                    ))
 
-    def judge_candidates(self, log_threshold=-2):
+                if self.verbosity >= 1:
+                    print('{0:5d} --> {1:<5d} : f = {2:3d}, d = {3:5.1f}, '
+                          'log_score={4:.2f}'.format(
+                                lost_bid, found_bid, connection['f'], 
+                                connection['d'], connection['score']
+                        ))
+
+    def _judge_candidates(self, log_threshold=-2, **kwargs):
         """
         Using the scores, determine how to patch worm segments together.
 
@@ -386,7 +394,7 @@ class Taper(object):
         ----------
         log_threshold : float
             Minimum threshold (in logarithm, base-10) of score to accept as 
-            a connection from the 
+            a connection from a candidate.
         """
         blob_ids = set(self.candidates)
         trace_edges = {}
@@ -412,39 +420,27 @@ class Taper(object):
 
         self.patched_segments, self.unpatched_segments = join_segments(trace_edges, blob_ids)
 
-        for trace in self.patched_segments:
-            print(' -> '.join(str(bid) for bid in trace))
+        if self.verbosity >= 1:
+            print('Patched Segments:')
+            for trace in self.patched_segments:
+                print(' * ', '  -> '.join(str(bid) for bid in trace))
 
-    def yield_candidates(self):
+    def segments(self):
         """
-        Generator that yields all patched segments
+        Generator that yields all patched and unpatched segments as 
+        key-value pairs, the key being the blob ID or first blob ID if it 
+        is a patched segment.  For patched segment data, an additional 
+        field is added to the dictionary, `segments`, which contains the 
+        series of blob IDs
         """
         for bid in self.unpatched_segments:
-            yield self.plate.parse_blob(bid)
+            yield format(bid, '05d'), self.plate.parse_blob(bid)
 
         for trace in self.patched_segments:
             patched = self.plate.parse_blob(trace)
             patched['segments'] = trace
-            yield patched
+            yield format(trace[0], '05d'), patched
             patched = None # save mem
-
-    def ThePeterProcedure(self):
-        """
-        Do all the things.  e.g. 
-
-        ::
-
-            for blob in tapeworm.Taper(mypath).ThePeterProcedure():
-                ... # do something with 'blob'
-        """
-        self.load_data()
-        self.find_candidates()
-        self.score_candidates()
-        self.judge_candidates()
-
-        cans = self.yield_candidates()
-        while True:
-            yield six.next(cans)
 
 if __name__ == '__main__':
     edges = [(1,2),(2,3),(4,5),(6,7),(8,6)]

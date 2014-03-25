@@ -203,7 +203,7 @@ def decode_outline(start, n_points, encoded_outline):
     n_points : int
         Number of contour points encoded in *encoded_outline*
     encoded_outline : str
-
+        The (non-standard) base64-encoded coordinate steps
     """
     if not n_points:
         raise ValueError('Empty data passed.')
@@ -231,3 +231,15 @@ def encode_outline(outline):
     """
     Inverse of :func:`decode_outline`.  **NOT YET IMPLEMENTED**
     """
+
+def decode_outline_line(blob_info, index):
+    """
+    Decodes the contour of the worm at a given *index* out of the data form 
+    returned by the parser as *blob_info*.  Basically, a more convienent 
+    interface for :func:`decode_outline`.
+    """
+    return decode_outline(
+            blob_info['contour_start'][index], 
+            blob_info['contour_encode_len'][index], 
+            blob_info['contour_encoded'][index]
+        )
