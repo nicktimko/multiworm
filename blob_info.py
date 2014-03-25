@@ -11,10 +11,16 @@ import multiworm
 import where
 
 def head_and_tail(linegen):
-    head = six.next(linegen)
+    try:
+        head = tail = six.next(linegen)
+    except StopIteration:
+        return [] # linegen has zero length
     for tail in linegen:
         assert not tail.startswith('%')
-    return head, tail
+    if head != tail:
+        return [head, tail]
+    else:
+        return [head]
 
 def main(argv=None):
     if argv is None:
@@ -41,14 +47,10 @@ def main(argv=None):
         sys.exit(1)
 
     file_no, offset = experiment.summary[['file_no', 'offset']][experiment.bs_mapping[args.blob_id]]
-    print('Data in blobs file number {0}, starting at byte {1}'.format(file_no, offset))
-    #print('Summary: {0}'.format(experiment.summary))
-    print('Path: {0}'.format(experiment.blobs_files[file_no]))
 
     if args.head_and_tail:
-        head, tail = experiment.parse_blob(args.blob_id, head_and_tail)
-        print(head)
-        print(tail)
+        for line in experiment.parse_blob(args.blob_id, head_and_tail):
+            print(line, end='')
 
     else:
         blob = experiment.parse_blob(args.blob_id)
@@ -57,6 +59,8 @@ def main(argv=None):
                 file=sys.stderr)
             return
 
+        print('Data in blobs file number {0}, starting at byte {1}'.format(file_no, offset))
+        print('Path: {0}'.format(experiment.blobs_files[file_no]))
         print(' {0:^25s} | {1:^30s} '.format('Field', 'Data'))
         print(' ' + '-'* 65)
 

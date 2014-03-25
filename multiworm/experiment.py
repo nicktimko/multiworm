@@ -101,6 +101,12 @@ class Experiment(object):
     def blobs_in_frame(self, frame):
         return exists_in_frame(frame)(self.summary)['bid']
 
+    def summary_data(self, bid):
+        """
+        Returns summary data on blob *bid*
+        """
+        return self.summary[self.bs_mapping[bid]]
+
     def _blob_lines(self, bid):
         """
         Generator that yields all lines of data for blob id `bid`.
