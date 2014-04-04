@@ -8,8 +8,9 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
-class MWTDataError(IOError):
+class OneGoodBlobException(Exception):
     """
-    Generic error to signal a problem with the MWT output data files.
+    For when there's only one good blob.  Causes some errors if not handled 
+    deliberately.
     """
     pass

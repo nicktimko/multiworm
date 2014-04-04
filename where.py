@@ -11,13 +11,19 @@ import argparse
 
 named_location = '%'
 
+default_location = '/home/projects/worm_movement/Data/MWT_RawData'
+
 data_file = os.path.join(os.path.dirname(__file__), 'data_sets.json')
 with open(data_file, 'r') as f:
     data_sets = json.load(f)
 
 def where(data_set):
     if data_set[0] == named_location:
-        data_set = data_sets[data_set[1:]]
+        return data_sets[data_set[1:]]
+
+    if not os.path.isdir(data_set):
+        return os.path.join(default_location, data_set)
+
     return data_set
 
 def main():

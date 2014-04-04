@@ -14,6 +14,8 @@ import scipy.stats as sps
 import scipy.interpolate as spi
 #import matplotlib.pyplot as plt
 
+from .core import OneGoodBlobException
+
 KDE_SAMPLES = 1000 #: Default number of samples to take along KDE distribution
 
 class DisplacementScorer(object):
@@ -26,9 +28,15 @@ class DisplacementScorer(object):
             samples=KDE_SAMPLES):
         # if subsample is None:
         #     subsample = 1
+        if displacements.shape[0] == 1:
+            raise OneGoodBlobException()
 
         #self.distance_domain = 0, np.percentile(displacements[-1], 95)
-        self.distance_domain = 0, displacements.compressed().max()
+        if isinstance(displacements, np.ma.MaskedArray):
+            self.distance_domain = 0, displacements.compressed().max()
+        else:
+            self.distance_domain = 0, displacements.max()
+
 
         # -1 on the shape because we're given the useless first frame (all 0's)
         self.frame_gap_domain = 1, displacements.shape[1] - 1
@@ -41,8 +49,10 @@ class DisplacementScorer(object):
 
         #for i, dist in enumerate(displacements.T[1:]):
         for i, fgap in enumerate(frame_gaps):
-            dist = displacements[:,fgap].compressed()
-            self.scores[i] = sps.gaussian_kde(dist, bandwidth)(distances)
+            dist = displacements[:,fgap]
+            if isinstance(dist, np.ma.MaskedArray):
+                dist = dist.compressed()
+            self.scores[i] = sps.gaussian_kde(dist, bw_method=bandwidth)(distances)
 
         self.score_interp = spi.RectBivariateSpline(frame_gaps, distances, self.scores)
 

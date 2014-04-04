@@ -7,13 +7,9 @@ import sys
 import itertools
 import argparse
 
+import where
 import multiworm
 import tapeworm
-
-TEST_DATA_SETS = {
-    '%pics1': '/home/projects/worm_movement/Data/MWT_RawData/20130702_135704',
-    '%pics2': '/home/projects/worm_movement/Data/MWT_RawData/20130702_135652',
-}
 
 def main():
     parser = argparse.ArgumentParser(description='')
@@ -30,17 +26,18 @@ def main():
 
 def tapetest():
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('test_set')
+    parser.add_argument('data_set', help='The location of the data set. If '
+        'names specified in a lookup file can be selected with a prefix of '
+        '{0}.'.format(where.named_location))
     args = parser.parse_args()
 
-    taper = tapeworm.Taper(TEST_DATA_SETS[args.test_set])
-    taper.load_data(show_progress=True)
-    taper.find_candidates()
-    taper.score_candidates()
-    taper.judge_candidates()
+    args.data_set = where.where(args.data_set)
 
-    for i, _ in enumerate(taper.yield_candidates()):
-        print(i, end='')
+    taper = tapeworm.Taper(args.data_set, verbosity=1)
+    taper.load_data()
+
+    for i, _ in enumerate(taper.segments()):
+        print(i, end=' ')
 
 if __name__ == '__main__':
     import cProfile as profile

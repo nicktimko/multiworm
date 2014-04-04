@@ -9,6 +9,8 @@ __pycache__/
 \.out(put)?$                # profiling output files
 profiles/                   # profiling output files
 tests?/\w*[-_]?data/        # data files generated for testing purposes
+\.7z
+\.tar\.
 
 ## Packaging
 \.egg-info/

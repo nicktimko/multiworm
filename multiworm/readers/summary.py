@@ -31,10 +31,10 @@ def find(directory):
     try:
         summaries = glob.glob(os.path.join(directory, '*.summary'))
         if len(summaries) > 1:
-            raise core.MWTDataError("Multiple summary files in target path.")
+            raise MWTDataError("Multiple summary files in target path.")
         summary = summaries[0]
     except IndexError:
-        raise core.MWTDataError("Could not find summary file in target path.")
+        raise MWTDataError("Could not find summary file in target path.")
 
     basename = os.path.splitext(os.path.basename(summary))[0]
 
@@ -65,7 +65,7 @@ def parse(file_path):
             time = float(line[1])
 
             if frame != i:
-                raise core.MWTDataError("Error in summary file, line has "
+                raise MWTDataError("Error in summary file, line has "
                         "unexpected frame number.")
 
             frame_times.append(time)
@@ -73,7 +73,7 @@ def parse(file_path):
             if len(line) == 15:
                 continue
             elif len(line) < 15:
-                raise core.MWTDataError("Malformed summary file, line with "
+                raise MWTDataError("Malformed summary file, line with "
                         "invalid number of fields (<15)")
 
             # split up the remaining data into whatever section

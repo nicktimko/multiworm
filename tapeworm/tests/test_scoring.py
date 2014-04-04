@@ -6,7 +6,6 @@ from six.moves import (zip, filter, map, reduce, input, range)
 import unittest
 
 import numpy as np
-
 import tapeworm.scoring
 
 class TestScoring(unittest.TestCase):
@@ -16,14 +15,14 @@ class TestScoring(unittest.TestCase):
         self.length = 30
         self.n_paths = 20
         offset = 0.8
-        displacement_data = np.array([
+        displacement_data = np.ma.array([
                 0.2 * (np.random.rand() + 0.5) # some random scaling
                 * np.append([0], # start at 0
                     np.cumsum(np.random.rand(self.length - 1) + offset)) 
                 for _ in range(self.n_paths)
             ])
 
-        self.min_f, self.max_f = (1, self.length)
+        self.min_f, self.max_f = (1, self.length - 1)
         self.min_d, self.max_d = (0, displacement_data.max())
         self.mean_f = (self.min_f + self.max_f) / 2
         self.mean_d = (self.min_d + self.max_d) / 2
@@ -34,7 +33,11 @@ class TestScoring(unittest.TestCase):
         self.assertEquals(
                 tuple(self.scorer.frame_gap_domain),
                 (self.min_f, self.max_f),
-                "Scorer frame gap domain differs from expected value.")
+                "Scorer frame gap domain ({}, {}) "
+                "differs from expected value ({}, {}).".format(
+                    self.scorer.frame_gap_domain[0], self.scorer.frame_gap_domain[1],
+                    self.min_f, self.max_f,
+                    ))
         self.assertEquals(
                 tuple(self.scorer.distance_domain),
                 (self.min_d, self.max_d),
