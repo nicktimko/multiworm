@@ -13,6 +13,7 @@ import itertools
 import math
 
 import numpy as np
+import networkx as nx
 
 import multiworm
 enumerate = multiworm.util.enumerate
@@ -102,7 +103,7 @@ def find_candidates(ends, starts, **params):
     Returns
     -------
     candidates : dict
-        A dictionary with all end blob IDs as keys, and a dictionary of
+            A dictionary with all end blob IDs as keys, and a dictionary of
         possible starts as values.  In the latter dictionary, keys are IDs
         and the value is a third dictionary with the fields `d` containing 
         the distance gap, and `f` with the frame gap.
@@ -160,43 +161,51 @@ def join_segments(diedges, nodes=None):
     free_nodes : set
         Only returned if *nodes* is provided.
     """
-    traces = []
+    dig = nx.DiGraph(diedges)
 
-    # value checks
-    starts = set(edge[0] for edge in diedges)
-    ends = set(edge[1] for edge in diedges)
-    if len(starts) != len(diedges):
-        raise ValueError("Node has more than one child.")
-    if len(ends) != len(diedges):
-        raise ValueError("Node has more than one parent.")
+    for node in dig.nodes_iter():
+        if dig.in_degree(node) > 1:
+            raise ValueError("Node has more than one parent")
+        if dig.out_degree(node) > 1:
+            raise ValueError("Node has more than one child")
 
     if nodes:
-        for edge in diedges:
-            for node in edge:
-                if node not in nodes:
-                    raise ValueError("Edge contains node not in 'nodes'")
+        nodes = set(nodes)
+        connected_nodes = set(dig.nodes_iter())
 
-    # stitch all edges together
-    for edge in diedges:
-        for trace in traces:
-            if trace[0] == edge[-1]:
-                trace.insert(0, edge[0])
-                break
-            elif trace[-1] == edge[0]:
-                trace.append(edge[-1])
+        if connected_nodes - nodes:
+            raise ValueError("Edge contains node not in 'nodes'")
+
+        free_nodes = nodes - connected_nodes
+
+    traces = []
+    for component in nx.connected_components(dig.to_undirected()):
+        subgraph = dig.subgraph(component)
+        for node, pre in six.iteritems(subgraph.pred):
+            if not pre:
+                trace = [node]
                 break
         else:
-            traces.append(list(edge))
+            raise ValueError("Component doesn't have a head node")
 
-    # remove joined segment nodes from the set to produce 'free' nodes.
+        while True:
+            successors = subgraph.successors(trace[-1])
+            if successors:
+                trace.append(successors[0])
+            else:
+                break
+
+            if len(trace) > subgraph.number_of_nodes():
+                # this is probably redundant after looking at
+                # in-degrees across the entire network
+                raise ValueError("Component edges form a loop")
+
+        traces.append(trace)
+
     if nodes:
-        for trace in traces:
-            for node in trace:
-                nodes.remove(node)
-        return traces, nodes
-
-    return traces
-
+        return traces, free_nodes
+    else:
+        return traces
 
 class MultiblobExperiment(multiworm.Experiment):
     """
