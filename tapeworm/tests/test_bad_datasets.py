@@ -34,9 +34,9 @@ class TestBadDatasets(unittest.TestCase):
             self.scorer = tapeworm.scoring.DisplacementScorer(displacement_data)
         except OneGoodBlobException:
             pass
-        except ValueError:
-            self.fail("Uncaptured ValueError exception when trying to "
-                      "construct scoring model with single trace.")
+        except Exception as e:
+            self.fail("Unexpected {} exception when trying to construct "
+                "scoring model with single trace.".format(e.__class__.__name__))
         else:
             self.fail("Scorer allowed construction of model using a single trace.")
 

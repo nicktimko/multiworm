@@ -304,6 +304,9 @@ class Taper(object):
         self.displacements = None
         self.verbosity = verbosity
 
+        self.patched_segments = []
+        self.unpatched_segments = []
+
     def _condense_blob(self, blob):
         """
         The only statistics we care about:
@@ -337,6 +340,7 @@ class Taper(object):
         self.ends = self._allocate_zeros(dtype=terminal_fields)
         displacements = []
 
+        i = -1
         for i, blob in enumerate(self.plate.good_blobs()):
             bid, bdata = blob
             bdata = self._condense_blob(bdata)
@@ -356,13 +360,26 @@ class Taper(object):
                 sys.stdout.flush()
 
         if self.verbosity >= 1:
-            # doesn't always show 100% (skips some numbers), plus we need a 
+            # Doesn't always show 100% (skips some numbers), plus we need a 
             # newline anyway
             print(' ... Done!')
 
-        # crop arrays
-        self.starts.resize(i + 1)
-        self.ends.resize(i + 1)
+        num_blobs = i + 1
+        if num_blobs == 0:
+            # No good blobs at all.  self.patched/unpatched segments already
+            # initalized to empty lists, so we can just skip everything else 
+            # and let the caller execute segments() which will give nothing.
+            return
+        elif num_blobs == 1:
+            # Only one good blob.  Nothing will ever be joined, so we can
+            # skip a great deal of effort and just say we have one unpatched 
+            # segment.
+            self.unpatched_segments = [self.starts[0][0]]
+            return
+        else:
+            # crop arrays
+            self.starts.resize(num_blobs)
+            self.ends.resize(num_blobs)
 
         displacements = jagged_mask(displacements)
         self.scorer = scoring.DisplacementScorer(displacements)
@@ -386,7 +403,8 @@ class Taper(object):
         """
         for lost_bid, connections in six.iteritems(self.candidates):
             for found_bid, connection in six.iteritems(connections):
-                connection['score'] = math.log10(self.scorer(connection['f'], connection['d']).max())
+                connection['score'] = math.log10(
+                        self.scorer(connection['f'], connection['d']).max())
 
                 if self.verbosity >= 1:
                     print('{0:5d} --> {1:<5d} : f = {2:3d}, d = {3:5.1f}, '
