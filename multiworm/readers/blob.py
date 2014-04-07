@@ -17,6 +17,11 @@ import numpy as np
 from ..core import MWTDataError
 from ..util import alternate, dtype
 
+class MWTBlobsError(MWTDataError):
+    """
+    An error having to do with the blobs file(s)
+    """
+
 def find(directory, basename):
     """
     Find all \*.blobs files in the given *path* with the specified *basename* 
@@ -28,7 +33,7 @@ def find(directory, basename):
     for i, fn in enumerate(blobs_files):
         expected_fn = '{0}_{1:05}k.blobs'.format(basename, i)
         if not fn.endswith(expected_fn):
-            raise MWTDataError("Experiment data missing a consecutive "
+            raise MWTBlobsError("Experiment data missing a consecutive "
                     "blobs file. ({0})".format(expected_fn))
 
     return blobs_files

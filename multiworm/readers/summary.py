@@ -27,14 +27,19 @@ SUMMARY_FIELDS = dtype([
         ('died_f', 'int32'),
     ])
 
+class MWTSummaryError(MWTDataError):
+    """
+    An error having to do with the summary file
+    """
+
 def find(directory):
     try:
         summaries = glob.glob(os.path.join(directory, '*.summary'))
         if len(summaries) > 1:
-            raise MWTDataError("Multiple summary files in target path.")
+            raise MWTSummaryError("Multiple summary files in specified directory; ambiguous")
         summary = summaries[0]
     except IndexError:
-        raise MWTDataError("Could not find summary file in target path.")
+        raise MWTSummaryError("Could not find summary file in target path")
 
     basename = os.path.splitext(os.path.basename(summary))[0]
 
@@ -65,7 +70,7 @@ def parse(file_path):
             time = float(line[1])
 
             if frame != i:
-                raise MWTDataError("Error in summary file, line has "
+                raise MWTSummaryError("Error in summary file, line has "
                         "unexpected frame number.")
 
             frame_times.append(time)
@@ -73,7 +78,7 @@ def parse(file_path):
             if len(line) == 15:
                 continue
             elif len(line) < 15:
-                raise MWTDataError("Malformed summary file, line with "
+                raise MWTSummaryError("Malformed summary file, line with "
                         "invalid number of fields (<15)")
 
             # split up the remaining data into whatever section
