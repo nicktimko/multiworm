@@ -88,7 +88,8 @@ class Experiment(object):
         :func:`good_blobs`, :func:`parse_blob`, or the like.
         """
         bs, self.frame_times = summary.parse(self.summary_file)
-        if bs['file_no'].max() + 1 > len(self.blobs_files):
+        # check size is non-zero to not error out on empty data sets
+        if bs.size and bs['file_no'].max() + 1 > len(self.blobs_files):
             raise MWTDataError("Summary file refers to missing blobs files.")
 
         # filter and create blob id mapping 

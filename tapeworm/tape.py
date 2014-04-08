@@ -370,16 +370,17 @@ class Taper(object):
             # initalized to empty lists, so we can just skip everything else 
             # and let the caller execute segments() which will give nothing.
             return
-        elif num_blobs == 1:
-            # Only one good blob.  Nothing will ever be joined, so we can
-            # skip a great deal of effort and just say we have one unpatched 
-            # segment.
-            self.unpatched_segments = [self.starts[0][0]]
-            return
         else:
             # crop arrays
             self.starts.resize(num_blobs)
             self.ends.resize(num_blobs)
+
+            if num_blobs == 1:
+                # Only one good blob.  Nothing will ever be joined, so we can
+                # skip a great deal of effort and just say we have one unpatched 
+                # segment.
+                self.unpatched_segments = [self.starts[0][0]]
+                return
 
         displacements = jagged_mask(displacements)
         self.scorer = scoring.DisplacementScorer(displacements)
