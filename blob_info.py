@@ -3,9 +3,16 @@
 from __future__ import (
         absolute_import, division, print_function, unicode_literals)
 import six
+from six.moves import zip, range, map
 
 import sys
 import argparse
+
+import numpy as np
+import scipy.optimize as spo
+import scipy.stats as sps
+import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
 
 import multiworm
 import where
@@ -22,6 +29,33 @@ def head_and_tail(linegen):
     else:
         return [head]
 
+def fit_gaussian(x, num_bins=200):
+    # some testdata has no variance whatsoever, this is escape clause
+    if abs(max(x) - min(x)) < 1e-5:
+        print('fit_gaussian exit')
+        return max(x), 1
+
+    n, bin_edges = np.histogram(x, num_bins, normed=True)
+    bincenters = [0.5 * (bin_edges[i + 1] + bin_edges[i]) for i in range(len(n))]
+
+    # Target function
+    fitfunc = lambda p, x: mlab.normpdf(x, p[0], p[1])
+
+    # Distance to the target function 
+    errfunc = lambda p, x, y: fitfunc(p, x) - y
+
+    # Initial guess for the parameters
+    mu = np.mean(x)
+    sigma = np.std(x)
+    p0 = [mu, sigma]
+    p1, success = spo.leastsq(errfunc, p0[:], args=(bincenters, n))
+    # weirdly if success is an integer from 1 to 4, it worked.
+    if success in [1,2,3,4]:
+        mu, sigma = p1
+        return mu, sigma
+    else:
+        return None
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -35,6 +69,14 @@ def main(argv=None):
     parser.add_argument('blob_id', type=int, help='The blob ID in the '
         'data set to summarize.')
     parser.add_argument('-ht', '--head-and-tail', action='store_true')
+
+    parser.add_argument('--xy', action='store_true', help='Plot X and Y '
+        'coordinates for the blob')
+    parser.add_argument('--spec', action='store_true', help='Spectogram')
+    #parser.add_argument('--show', action='store_true', help='Try to show the blob using images')
+    parser.add_argument('--dist', action='store_true', help='Distribution of steps')
+
+    parser.add_argument('--frames', type=int, nargs=2, help='Start/stop frames')
 
     args = parser.parse_args()
 
@@ -84,6 +126,45 @@ def main(argv=None):
         fld('Found at', *blob['centroid'][0])
         fld('Lost at', *blob['centroid'][-1])
 
+        #if args.show:
+        #    pass
+        if args.xy:
+            import matplotlib.pyplot as plt
+
+            if args.frames:
+                start_frame = blob['frame'][0]
+                start_idx = args.frames[0] - start_frame
+                end_idx = args.frames[1] - start_frame
+                centroid = blob['centroid'][start_idx:end_idx]
+            else:
+                centroid = blob['centroid']
+
+            if args.spec:
+                f, axs = plt.subplots(2, 2, sharex=True)
+                for ax, data in zip(axs, zip(*centroid)):
+                    #import pdb;pdb.set_trace()
+                    ax1, ax2 = ax
+                    ax1.plot(np.arange(len(data))/25, data)
+                    ax2.specgram(data, NFFT=512, Fs=25)
+
+            elif args.dist:
+                xy = zip(*centroid)
+                dxy = [np.diff(d) for d in xy]
+                f, ax = plt.subplots()
+                for color, data in zip(['red', 'green'], dxy):
+                    mean, sd = fit_gaussian(data)
+
+                    ax.hist(data, 500, histtype='stepfilled', color=color, alpha=0.5, normed=True)
+                    norm_x = np.linspace(-4, 4, 100) * sd + mean
+                    norm_y = sps.norm(mean, sd).pdf(norm_x)
+                    ax.plot(norm_x, norm_y, color=color, ls='--', lw=3)
+
+            else:
+                f, axs = plt.subplots(2, sharex=True)
+                for ax, data in zip(axs, zip(*centroid)):
+                    ax.plot(data)
+
+            plt.show()
 
 if __name__ == '__main__':
     sys.exit(main())

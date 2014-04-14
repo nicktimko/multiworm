@@ -89,12 +89,13 @@ def main(argv=None):
     parser = frame_parser_spec(frame)
     for bid in bids:
         blob = experiment.parse_blob(bid, parser)
-        outline = blob_reader.decode_outline(
-                blob['contour_start'][0],
-                blob['contour_encode_len'][0],
-                blob['contour_encoded'][0],
-            )
-        outlines.append(outline)
+        if blob['contour_encode_len'][0]:
+            outline = blob_reader.decode_outline(
+                    blob['contour_start'][0],
+                    blob['contour_encode_len'][0],
+                    blob['contour_encoded'][0],
+                )
+            outlines.append(outline)
 
     f, ax = plt.subplots()
     ax.imshow(img.T, cmap=plt.cm.Greys_r)

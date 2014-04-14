@@ -21,8 +21,17 @@ def where(data_set):
     if data_set[0] == named_location:
         return data_sets[data_set[1:]]
 
-    if not os.path.isdir(data_set):
-        return os.path.join(default_location, data_set)
+    if data_set.startswith('back^'):
+        _, backup, data_set = data_set.split('^')
+
+        period, period_num = backup[:1], backup[1:]
+        period = {'d': 'daily', 'w': 'weekly', 'm': 'monthly'}[period]
+        backup = '{}.{}'.format(period, period_num)
+
+        return os.path.join('/backups', backup, 'viseu', default_location[1:], data_set)
+    else:
+        if not os.path.isdir(data_set):
+            return os.path.join(default_location, data_set)
 
     return data_set
 
