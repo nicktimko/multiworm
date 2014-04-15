@@ -7,6 +7,7 @@ from six.moves import zip, range, map
 
 import sys
 import argparse
+import numbers
 
 import numpy as np
 import scipy.optimize as spo
@@ -56,6 +57,57 @@ def fit_gaussian(x, num_bins=200):
     else:
         return None
 
+def centroid_stats(steps):
+    stats = []
+    for data in steps:
+        stats.append(fit_gaussian(data))
+    return stats
+
+def centroid_steps(centroid):
+    xy = zip(*centroid)
+    dxy = [np.diff(d) for d in xy]
+    return dxy
+
+def step_distribution(centroid):
+    f, ax = plt.subplots()
+    steps = centroid_steps(centroid)
+
+    stats = centroid_stats(steps)
+    for direction, color, meansd, data in zip(['X', 'Y'], ['red', 'green'], stats, steps):
+        mean, sd = meansd
+        print(' {0:25s} | {1:0.2e}, {2:0.2e}'.format(direction + ' stddev, mean', sd, mean))
+        ax.hist(data, 500, histtype='stepfilled', color=color, alpha=0.5, normed=True)
+        norm_x = np.linspace(-4, 4, 100) * sd + mean
+        norm_y = sps.norm(mean, sd).pdf(norm_x)
+        ax.plot(norm_x, norm_y, color=color, ls='--', lw=3)
+
+def spectrogram(centroid):
+    f, axs = plt.subplots(2, 2, sharex=True)
+    for ax, data in zip(axs, zip(*centroid)):
+        #import pdb;pdb.set_trace()
+        ax1, ax2 = ax
+        ax1.plot(np.arange(len(data))/25, data)
+        ax2.specgram(data, NFFT=512, Fs=25)
+
+def excise_frames(blob, start, stop):
+    first_frame = blob['frame'][0]
+    start_idx = start - first_frame
+    end_idx = stop - first_frame
+    if start_idx < 0 or end_idx > len(blob['frame']):
+        raise ValueError('Start/stop frames outside of bounds')
+    return blob['centroid'][start_idx:end_idx]
+
+def fld(fieldname, *data, **kwargs):
+    joiner = kwargs.get('joiner', ', ')
+    try:
+        datastr = joiner.join(
+            ('{0:.1f}' if isinstance(pt, numbers.Real) else '{0:d}').format(pt)
+            for pt in data)
+    except TypeError:
+        datastr = str(data)
+
+    print(' {0:25s} | {1:s}'.format(fieldname, datastr))
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -69,13 +121,11 @@ def main(argv=None):
     parser.add_argument('blob_id', type=int, help='The blob ID in the '
         'data set to summarize.')
     parser.add_argument('-ht', '--head-and-tail', action='store_true')
-
     parser.add_argument('--xy', action='store_true', help='Plot X and Y '
         'coordinates for the blob')
     parser.add_argument('--spec', action='store_true', help='Spectogram')
     #parser.add_argument('--show', action='store_true', help='Try to show the blob using images')
     parser.add_argument('--dist', action='store_true', help='Distribution of steps')
-
     parser.add_argument('--frames', type=int, nargs=2, help='Start/stop frames')
 
     args = parser.parse_args()
@@ -106,17 +156,6 @@ def main(argv=None):
         print(' {0:^25s} | {1:^30s} '.format('Field', 'Data'))
         print(' ' + '-'* 65)
 
-        def fld(fieldname, *data, **kwargs):
-            joiner = kwargs.get('joiner', ', ')
-            try:
-                datastr = joiner.join(
-                    ('{0:.1f}' if type(pt) == float else '{0:d}').format(pt)
-                    for pt in data)
-            except TypeError:
-                datastr = str(data)
-
-            print(' {0:25s} | {1:s}'.format(fieldname, datastr))
-
         life_s = blob['time'][-1] - blob['time'][0]
         life_f = blob['frame'][-1] - blob['frame'][0]
 
@@ -129,37 +168,15 @@ def main(argv=None):
         #if args.show:
         #    pass
         if args.xy:
-            import matplotlib.pyplot as plt
-
-            if args.frames:
-                start_frame = blob['frame'][0]
-                start_idx = args.frames[0] - start_frame
-                end_idx = args.frames[1] - start_frame
-                centroid = blob['centroid'][start_idx:end_idx]
-            else:
-                centroid = blob['centroid']
+            centroid = excise_frames(blob, *args.frames) if args.frames else blob['centroid']
 
             if args.spec:
-                f, axs = plt.subplots(2, 2, sharex=True)
-                for ax, data in zip(axs, zip(*centroid)):
-                    #import pdb;pdb.set_trace()
-                    ax1, ax2 = ax
-                    ax1.plot(np.arange(len(data))/25, data)
-                    ax2.specgram(data, NFFT=512, Fs=25)
+                spectogram(centroid)
 
             elif args.dist:
-                xy = zip(*centroid)
-                dxy = [np.diff(d) for d in xy]
-                f, ax = plt.subplots()
-                for color, data in zip(['red', 'green'], dxy):
-                    mean, sd = fit_gaussian(data)
+                step_distribution(centroid)
 
-                    ax.hist(data, 500, histtype='stepfilled', color=color, alpha=0.5, normed=True)
-                    norm_x = np.linspace(-4, 4, 100) * sd + mean
-                    norm_y = sps.norm(mean, sd).pdf(norm_x)
-                    ax.plot(norm_x, norm_y, color=color, ls='--', lw=3)
-
-            else:
+            else: # show X and Y over frames
                 f, axs = plt.subplots(2, sharex=True)
                 for ax, data in zip(axs, zip(*centroid)):
                     ax.plot(data)

@@ -34,7 +34,7 @@ def frame_parser(blob_lines, frame):
 
     # blindly consume as many lines as needed
     try:
-        for _ in range(frame_offset):
+        for dummy in range(frame_offset):
             line = six.next(blob_lines)
     except MWTDataError:
         pass

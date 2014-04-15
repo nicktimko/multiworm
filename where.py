@@ -18,10 +18,35 @@ with open(data_file, 'r') as f:
     data_sets = json.load(f)
 
 def where(data_set):
-    if data_set[0] == named_location:
-        return data_sets[data_set[1:]]
+    """
+    Converts a short dataset name into the full path.  There are a couple 
+    techniques used to find or refer to a data set, any of which can be used.
 
-    if data_set.startswith('back^'):
+    1. Named data set lookup in JSON.  If the provided string starts with 
+       a special character (``%``), the full path is looked up in a JSON using 
+       the remainder of the string.  Failure will raise a KeyError.
+
+    2. Backup states.  If the provided string starts with ``bak^XY^``, where 
+       ``X`` is one of ``d``, ``w``, or ``m`` (for daily, weekly, and 
+       monthly, respectively), and Y is a number, the returned path will 
+       point to the respective backup.  e.g. ``bak^d5^20120101_000000`` will 
+       be transformed into the path pointing at the ``daily.5`` backup 
+       dataset version.
+
+    3. Explicit dataset location.  If the string provided is a valid path, 
+       the function will return the same string.
+
+    4. Implicit dataset location.  If none of the above apply, the string is 
+       appended to the standard location for datasets and returned.  Note 
+       that no checking is done to verify if the folder actually exists.
+    """
+    if data_set[0] == named_location:
+        try:
+            return data_sets[data_set[1:]]
+        except KeyError:
+            raise KeyError("Named data set not found in lookup file.")
+
+    if data_set.startswith('bak^'):
         _, backup, data_set = data_set.split('^')
 
         period, period_num = backup[:1], backup[1:]
