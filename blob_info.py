@@ -154,7 +154,7 @@ def main(argv=None):
 
     parser.add_argument('data_set', help='The location of the data set. If '
         'names specified in a lookup file can be selected with a prefix of '
-        '{0}.'.format(where.named_location))
+        '{0}.'.format(where.named_location).replace('%', '%%'))
     parser.add_argument('blob_id', type=int, help='The blob ID in the '
         'data set to summarize.')
     parser.add_argument('-ht', '--head-and-tail', action='store_true')
@@ -165,7 +165,10 @@ def main(argv=None):
         'appropriate number of parameters for the filter.')
     parser.add_argument('--spec', action='store_true', help='Spectogram')
     #parser.add_argument('--show', action='store_true', help='Try to show the blob using images')
-    parser.add_argument('--dist', action='store_true', help='Distribution of steps')
+    parser.add_argument('--dist', action='store_true', help='Distribution of '
+        'steps')
+    parser.add_argument('--speeds', action='store_true', help='Distribution '
+        'of speeds (requires --smooth ...)')
     parser.add_argument('--frames', type=int, nargs=2, help='Start/stop frames')
 
     args = parser.parse_args()
@@ -210,9 +213,7 @@ def main(argv=None):
         fld('Found at', *blob['centroid'][0])
         fld('Lost at', *blob['centroid'][-1])
 
-        #if args.show:
-        #    pass
-        if args.xy:
+        if args.xy or args.spec or args.dist or args.smooth:
             import matplotlib.pyplot as plt
 
             centroid = excise_frames(blob, *args.frames) if args.frames else blob['centroid']
@@ -223,19 +224,63 @@ def main(argv=None):
             elif args.dist:
                 step_distribution(centroid)
 
-            else: # show X and Y over frames
+            elif args.smooth and args.speeds:
+                f = plt.figure()
+                ax_x = plt.subplot2grid((3, 2), (0, 0))
+                ax_y = plt.subplot2grid((3, 2), (1, 0))
+                ax_speed = plt.subplot2grid((3, 2), (2, 0))
+                ax_distspeed = plt.subplot2grid((3, 2), (0, 1), rowspan=3)
+
+                smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
+                xy = list(zip(*centroid))
+                xy_smoothed = [smooth(smooth_method, c, *smooth_params) for c in xy]
+
+                for ax, c, c_smoothed in zip([ax_x, ax_y], xy, xy_smoothed):
+                    ax.plot(c, color='blue', alpha=0.5)
+                    ax.plot(c_smoothed, lw=2, color='green')
+
+                dxy = np.diff(np.array(xy), axis=1)
+                ds = np.linalg.norm(dxy, axis=0)
+                ax_speed.plot(ds)
+                ax_distspeed.hist(ds, 500, histtype='stepfilled', alpha=0.5, normed=True)
+
+            elif args.smooth:
                 f, axs = plt.subplots(2, sharex=True)
                 for ax, data in zip(axs, zip(*centroid)):
-                    if args.smooth:
-                        smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
-                        data_smoothed = smooth(smooth_method, data, *smooth_params)
-                        ax.plot(data, color='blue', alpha=0.5)
-                        ax.plot(data_smoothed, lw=2, color='green')
-                    else:
+                    smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
+                    data_smoothed = smooth(smooth_method, data, *smooth_params)
+                    ax.plot(data, color='blue', alpha=0.5)
+                    ax.plot(data_smoothed, lw=2, color='green')
 
-                        ax.plot(data, color='blue')
+            else:
+                f, axs = plt.subplots(2, sharex=True)
+                for ax, data in zip(axs, zip(*centroid)):
+                    ax.plot(data, color='blue')
 
             plt.show()
 
 if __name__ == '__main__':
     sys.exit(main())
+
+
+'''
+            else: # show X and Y over frames
+                fig, axs = plt.subplots(2, sharex=True)
+                speed = 
+                for ax, data in zip(axs, zip(*centroid)):
+                    if args.smooth:
+                        smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
+                        data_smoothed = smooth(smooth_method, data, *smooth_params)
+                        if args.speeds:
+
+                            fig_2, ax_speeds = plt.subplots()
+                            ax_speeds.hist()
+
+
+                        else:
+                            ax.plot(data, color='blue', alpha=0.5)
+                            ax.plot(data_smoothed, lw=2, color='green')
+                    else:
+
+                        ax.plot(data, color='blue')
+'''

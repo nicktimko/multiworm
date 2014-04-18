@@ -66,13 +66,12 @@ def main(argv=None):
 
     parser.add_argument('data_set', help='The location of the data set. If '
         'names specified in a lookup file can be selected with a prefix of '
-        '{0}.'.format(where.named_location))
+        '{0}.'.format(where.named_location).replace('%', '%%'))
     parser.add_argument('-n', '--noise', action='store_true', 
         help='Estimate the amount of noise present in the centroid data.  '
         'Plot available.')
-    parser.add_argument('-s', '--speed', action='store_true',
-        help='Smooth then generate a distribution of speeds.  Plot '
-        'available.')
+    parser.add_argument('-l', '--longest', type=int, help='Display the '
+        'longest-lived blobs', default=10)
     parser.add_argument('-p', '--plot', action='store_true', help='Show a '
         'plot (if supported by another command)')
 
@@ -92,8 +91,12 @@ def main(argv=None):
         print('X mean of means/stddevs: {:0.3e} \u00B1 {:0.3e}'.format(*means[0:2]))
         print('Y mean of means/stddevs: {:0.3e} \u00B1 {:0.3e}'.format(*means[2:4]))
 
-    if args.speed:
-        pass#assess_speeds()
+    if args.longest:
+        print('   {:>5s} | {}'.format('ID', 'Life (s)'))
+        print('  {:->7s}+{:-<10s}'.format('', ''))
+        for bid, lifespan in longest_10(experiment, args.longest):
+            print('   {:5d} | {:7.2f}'.format(bid, lifespan))
+
 
     if args.plot:
         import matplotlib.pyplot as plt
