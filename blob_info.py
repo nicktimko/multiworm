@@ -12,10 +12,9 @@ import numbers
 import numpy as np
 import scipy.optimize as spo
 import scipy.stats as sps
-import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
 
 import multiworm
+import multiworm.analytics.sgolay
 import where
 
 def head_and_tail(linegen):
@@ -30,6 +29,12 @@ def head_and_tail(linegen):
     else:
         return [head]
 
+def normpdf(x, *args):
+    "Return the normal pdf evaluated at *x*; args provides *mu*, *sigma*"
+    # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mlab.py#L1554
+    mu, sigma = args
+    return 1./(np.sqrt(2*np.pi)*sigma)*np.exp(-0.5 * (1./sigma*(x - mu))**2)
+
 def fit_gaussian(x, num_bins=200):
     # some testdata has no variance whatsoever, this is escape clause
     if abs(max(x) - min(x)) < 1e-5:
@@ -40,7 +45,7 @@ def fit_gaussian(x, num_bins=200):
     bincenters = [0.5 * (bin_edges[i + 1] + bin_edges[i]) for i in range(len(n))]
 
     # Target function
-    fitfunc = lambda p, x: mlab.normpdf(x, p[0], p[1])
+    fitfunc = lambda p, x: normpdf(x, p[0], p[1])
 
     # Distance to the target function 
     errfunc = lambda p, x, y: fitfunc(p, x) - y
@@ -69,25 +74,38 @@ def centroid_steps(centroid):
     return dxy
 
 def step_distribution(centroid):
+    import matplotlib.pyplot as plt
     f, ax = plt.subplots()
     steps = centroid_steps(centroid)
-
     stats = centroid_stats(steps)
+
     for direction, color, meansd, data in zip(['X', 'Y'], ['red', 'green'], stats, steps):
         mean, sd = meansd
         print(' {0:25s} | {1:0.2e}, {2:0.2e}'.format(direction + ' stddev, mean', sd, mean))
-        ax.hist(data, 500, histtype='stepfilled', color=color, alpha=0.5, normed=True)
+        ax.hist(data, 500, histtype='stepfilled', color=color, alpha=0.5, normed=True, label=direction)
         norm_x = np.linspace(-4, 4, 100) * sd + mean
         norm_y = sps.norm(mean, sd).pdf(norm_x)
         ax.plot(norm_x, norm_y, color=color, ls='--', lw=3)
+        ax.legend()
+
+    sd_window = 3.5
+    max_sd = max(s[1] for s in stats)
+    ax.set_xlim(-sd_window * max_sd, sd_window * max_sd)
 
 def spectrogram(centroid):
+    import matplotlib.pyplot as plt
     f, axs = plt.subplots(2, 2, sharex=True)
     for ax, data in zip(axs, zip(*centroid)):
         #import pdb;pdb.set_trace()
         ax1, ax2 = ax
         ax1.plot(np.arange(len(data))/25, data)
         ax2.specgram(data, NFFT=512, Fs=25)
+
+def spectral(centroid):
+    import matplotlib.pyplot as plt
+    f, ax = plt.subplot()
+
+    Ellipsis
 
 def excise_frames(blob, start, stop):
     first_frame = blob['frame'][0]
@@ -108,6 +126,25 @@ def fld(fieldname, *data, **kwargs):
 
     print(' {0:25s} | {1:s}'.format(fieldname, datastr))
 
+def sgolay(series, window, order):
+    series = np.array(series)
+    window = int(window)
+    order = int(order)
+    return multiworm.analytics.sgolay.savitzky_golay(series, window, order)
+
+SMOOTH_METHODS = {
+    'sgolay': sgolay
+}
+
+def smooth(method, series, *params):
+    if method not in SMOOTH_METHODS:
+        raise ValueError('Unknown method.')
+
+    return SMOOTH_METHODS[method](series, *params)
+
+def speed_dist(centroid):
+    Ellipsis
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -123,6 +160,9 @@ def main(argv=None):
     parser.add_argument('-ht', '--head-and-tail', action='store_true')
     parser.add_argument('--xy', action='store_true', help='Plot X and Y '
         'coordinates for the blob')
+    parser.add_argument('--smooth', nargs='+', help='Smooth the '
+        'X-Y values. Must provide method (e.g. "sgolay"), and the '
+        'appropriate number of parameters for the filter.')
     parser.add_argument('--spec', action='store_true', help='Spectogram')
     #parser.add_argument('--show', action='store_true', help='Try to show the blob using images')
     parser.add_argument('--dist', action='store_true', help='Distribution of steps')
@@ -136,6 +176,11 @@ def main(argv=None):
     experiment.load_summary()
     if args.blob_id not in experiment.bs_mapping:
         print('Blob ID {0} not found.'.format(args.blob_id), file=sys.stderr)
+        sys.exit(1)
+
+    if args.smooth and args.smooth[0] not in SMOOTH_METHODS:
+        print('Smoothing method "{}" not valid.  Must be one of: {}'
+            .format(args.smooth[0], ', '.join(SMOOTH_METHODS)), file=sys.stderr)
         sys.exit(1)
 
     file_no, offset = experiment.summary[['file_no', 'offset']][experiment.bs_mapping[args.blob_id]]
@@ -168,10 +213,12 @@ def main(argv=None):
         #if args.show:
         #    pass
         if args.xy:
+            import matplotlib.pyplot as plt
+
             centroid = excise_frames(blob, *args.frames) if args.frames else blob['centroid']
 
             if args.spec:
-                spectogram(centroid)
+                spectrogram(centroid)
 
             elif args.dist:
                 step_distribution(centroid)
@@ -179,7 +226,14 @@ def main(argv=None):
             else: # show X and Y over frames
                 f, axs = plt.subplots(2, sharex=True)
                 for ax, data in zip(axs, zip(*centroid)):
-                    ax.plot(data)
+                    if args.smooth:
+                        smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
+                        data_smoothed = smooth(smooth_method, data, *smooth_params)
+                        ax.plot(data, color='blue', alpha=0.5)
+                        ax.plot(data_smoothed, lw=2, color='green')
+                    else:
+
+                        ax.plot(data, color='blue')
 
             plt.show()
 

@@ -10,7 +10,6 @@ import os.path
 import argparse
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 import multiworm
 import where
@@ -24,32 +23,26 @@ def longest_10(experiment, ten=10):
 def assess_noise(experiment, npoints=200, plot=False):
     xmeans, ymeans = [], []
     xsds, ysds = [], []
+
     for n, blob in enumerate(longest_10(experiment, ten=npoints), start=1):
         bid, life = blob
-        #print(' {:>2d}. {:<5d} ({} s)'.format(n, bid, life), end='')
 
         blob = experiment.parse_blob(bid)
         if blob is None:
-            print(' (blob has no data)')
             continue
-        
+
         steps = blob_info.centroid_steps(blob['centroid'])
         (xmean, xsd), (ymean, ysd) = blob_info.centroid_stats(steps)
-        
+
         xmeans.append(xmean)
         xsds.append(xsd)
         ymeans.append(ymean)
         ysds.append(ysd)
 
-        # print(', step dist, X: {:0.2e}\u00B1{:0.2e} / '
-        #       'Y: {:0.2e}\u00B1{:0.2e}'.format(xmean, xsd, ymean, ysd))
-
     means = [np.mean(v) for v in [xmeans, xsds, ymeans, ysds]]
 
-    print('X mean of means/stddevs: {:0.3e} \u00B1 {:0.3e}'.format(*means[0:2]))
-    print('Y mean of means/stddevs: {:0.3e} \u00B1 {:0.3e}'.format(*means[2:4]))
-
     if plot:
+        import matplotlib.pyplot as plt
         f, axs = plt.subplots(ncols=2)
         f.suptitle('Normal summary statistics for frame-by-frame centroid steps')
         for ax, data, title in zip(axs, [[xmeans, ymeans], [xsds, ysds]], 
@@ -77,6 +70,9 @@ def main(argv=None):
     parser.add_argument('-n', '--noise', action='store_true', 
         help='Estimate the amount of noise present in the centroid data.  '
         'Plot available.')
+    parser.add_argument('-s', '--speed', action='store_true',
+        help='Smooth then generate a distribution of speeds.  Plot '
+        'available.')
     parser.add_argument('-p', '--plot', action='store_true', help='Show a '
         'plot (if supported by another command)')
 
@@ -91,9 +87,16 @@ def main(argv=None):
     print('Number of blobs        : {}'.format(len(experiment.summary)))
 
     if args.noise:
-        assess_noise(experiment, plot=args.plot)
+        means = assess_noise(experiment, plot=args.plot)
+
+        print('X mean of means/stddevs: {:0.3e} \u00B1 {:0.3e}'.format(*means[0:2]))
+        print('Y mean of means/stddevs: {:0.3e} \u00B1 {:0.3e}'.format(*means[2:4]))
+
+    if args.speed:
+        pass#assess_speeds()
 
     if args.plot:
+        import matplotlib.pyplot as plt
         plt.show()
 
 if __name__ == '__main__':
