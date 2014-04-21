@@ -14,13 +14,8 @@ from collections import defaultdict
 
 import numpy as np
 
-from ..core import MWTDataError
+from ..core import MWTBlobsError
 from ..util import alternate, dtype
-
-class MWTBlobsError(MWTDataError):
-    """
-    An error having to do with the blobs file(s)
-    """
 
 def find(directory, basename):
     """

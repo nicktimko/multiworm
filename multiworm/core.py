@@ -13,3 +13,16 @@ class MWTDataError(StandardError):
     Generic error to signal a problem with the MWT output data files.
     """
     pass
+
+
+class MWTSummaryError(MWTDataError):
+    """
+    An error having to do with the summary file
+    """
+
+
+class MWTBlobsError(MWTDataError):
+    """
+    An error having to do with the blobs file(s)
+    """
+

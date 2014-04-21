@@ -14,7 +14,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from ..core import MWTDataError
+from ..core import MWTSummaryError
 from ..util import alternate, dtype
 
 SUMMARY_FIELDS = dtype([
@@ -26,11 +26,6 @@ SUMMARY_FIELDS = dtype([
         ('died', 'float64'),
         ('died_f', 'int32'),
     ])
-
-class MWTSummaryError(MWTDataError):
-    """
-    An error having to do with the summary file
-    """
 
 def find(directory):
     try:
@@ -63,23 +58,23 @@ def parse(file_path):
     active_blobs = set()
     frame_times = []
     with open(file_path, 'r') as f:
-        for i, line in enumerate(f, 1):
+        for line_num, line in enumerate(f, start=1):
             # store all blob locations and remove them from end of line.
             line = line.split()
             frame = int(line[0])
             time = float(line[1])
 
-            if frame != i:
-                raise MWTSummaryError("Error in summary file, line has "
-                        "unexpected frame number.")
+            if frame != line_num:
+                raise MWTSummaryError("Error in summary file, line {} has "
+                        "unexpected frame number ({}).".format(line_num, frame))
 
             frame_times.append(time)
 
             if len(line) == 15:
                 continue
             elif len(line) < 15:
-                raise MWTSummaryError("Malformed summary file, line with "
-                        "invalid number of fields (<15)")
+                raise MWTSummaryError("Malformed summary file, line {} has "
+                        "an invalid number of fields (<15)".format(line_num))
 
             # split up the remaining data into whatever section
             data = {'events': [], 'lost_and_found': [], 'offsets': []}

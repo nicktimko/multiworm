@@ -8,17 +8,10 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
-import os.path
-from collections import defaultdict
-import glob
-import re
-
-import numpy as np
-
 from .core import MWTDataError
 from .readers import blob, summary, image
 from .util import multifilter, multitransform
-from .filters import exists_in_frame, exists_at_time
+from .filters import exists_in_frame
 
 class Experiment(object):
     """
@@ -89,8 +82,12 @@ class Experiment(object):
         """
         bs, self.frame_times = summary.parse(self.summary_file)
         # check size is non-zero to not error out on empty data sets
-        if bs.size and bs['file_no'].max() + 1 > len(self.blobs_files):
-            raise MWTDataError("Summary file refers to missing blobs files.")
+        if bs.size:
+            file_refs = bs['file_no'].max() + 1
+            file_count = len(self.blobs_files)
+            if file_refs > file_count:
+                raise MWTDataError("Summary refers to missing blobs files "
+                        "({} out of {} found).".format(file_count, file_refs))
 
         # filter and create blob id mapping 
         self.summary = multitransform(self.summary_filters, bs)
@@ -116,8 +113,8 @@ class Experiment(object):
         with open(self.blobs_files[file_no], 'r') as f:
             f.seek(offset)
             if six.next(f).rstrip() != '% {0}'.format(bid):
-                raise MWTDataError("File number/offset for blob {0} was "
-                        "incorrect.".format(bid))
+                raise MWTDataError("File number/offset ({}/{}) for blob {} "
+                        "was incorrect.".format(file_no, offset, bid))
             for line in f:
                 if line[0] != '%':
                     yield line
