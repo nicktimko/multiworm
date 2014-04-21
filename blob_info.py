@@ -6,6 +6,7 @@ import six
 from six.moves import zip, range, map
 
 import sys
+import os.path
 import argparse
 import numbers
 
@@ -16,6 +17,10 @@ import scipy.stats as sps
 import multiworm
 import multiworm.analytics.sgolay
 import where
+
+WALDO_LOC = os.path.join(os.path.dirname(__file__), '..', 'Waldo')
+WALDO_CODE = os.path.join(WALDO_LOC, 'code')
+WALDO_DATA = os.path.join(WALDO_LOC, 'data', 'worms')
 
 def head_and_tail(linegen):
     try:
@@ -145,6 +150,9 @@ def smooth(method, series, *params):
 def speed_dist(centroid):
     Ellipsis
 
+def waldo_pull(exp_id):
+    pass
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -170,6 +178,8 @@ def main(argv=None):
     parser.add_argument('--speeds', action='store_true', help='Distribution '
         'of speeds (requires --smooth ...)')
     parser.add_argument('--frames', type=int, nargs=2, help='Start/stop frames')
+    parser.add_argument('--waldo', action='store_true', help='Pull data from '
+        'Waldo-processed files')
 
     args = parser.parse_args()
 
@@ -191,73 +201,84 @@ def main(argv=None):
     if args.head_and_tail:
         for line in experiment.parse_blob(args.blob_id, head_and_tail):
             print(line, end='')
+        return
 
-    else:
-        blob = experiment.parse_blob(args.blob_id)
-        if blob is None:
-            print("Blob ID {} exists, but has no data.".format(args.blob_id), 
-                file=sys.stderr)
-            return
+    blob = experiment.parse_blob(args.blob_id)
+    if blob is None:
+        print("Blob ID {} exists, but has no data.".format(args.blob_id), 
+            file=sys.stderr)
+        return
 
-        print('Data in blobs file number {0}, starting at byte {1}'.format(file_no, offset))
-        print('Path: {0}'.format(experiment.blobs_files[file_no]))
-        print(' {0:^25s} | {1:^30s} '.format('Field', 'Data'))
-        print(' ' + '-'* 65)
+    print('Data in blobs file number {0}, starting at byte {1}'.format(file_no, offset))
+    print('Path: {0}'.format(experiment.blobs_files[file_no]))
+    print(' {0:^25s} | {1:^30s} '.format('Field', 'Data'))
+    print(' ' + '-'* 65)
 
-        life_s = blob['time'][-1] - blob['time'][0]
-        life_f = blob['frame'][-1] - blob['frame'][0]
+    life_s = blob['time'][-1] - blob['time'][0]
+    life_f = blob['frame'][-1] - blob['frame'][0]
 
-        fld('Lifetime (s, frames)', life_s, life_f)
-        fld('Time Range (s)', blob['time'][0], blob['time'][-1], joiner=' - ')
-        fld('Frame Range', blob['frame'][0], blob['frame'][-1], joiner=' - ')
-        fld('Found at', *blob['centroid'][0])
-        fld('Lost at', *blob['centroid'][-1])
+    fld('Lifetime (s, frames)', life_s, life_f)
+    fld('Time Range (s)', blob['time'][0], blob['time'][-1], joiner=' - ')
+    fld('Frame Range', blob['frame'][0], blob['frame'][-1], joiner=' - ')
+    fld('Found at', *blob['centroid'][0])
+    fld('Lost at', *blob['centroid'][-1])
 
-        if args.xy or args.spec or args.dist or args.smooth:
-            import matplotlib.pyplot as plt
+    if args.xy or args.spec or args.dist or args.smooth:
+        import matplotlib.pyplot as plt
 
-            centroid = excise_frames(blob, *args.frames) if args.frames else blob['centroid']
+        centroid = excise_frames(blob, *args.frames) if args.frames else blob['centroid']
 
-            if args.spec:
-                spectrogram(centroid)
+        if args.spec:
+            spectrogram(centroid)
 
-            elif args.dist:
-                step_distribution(centroid)
+        elif args.dist:
+            step_distribution(centroid)
 
-            elif args.smooth and args.speeds:
-                f = plt.figure()
-                ax_x = plt.subplot2grid((3, 2), (0, 0))
-                ax_y = plt.subplot2grid((3, 2), (1, 0))
-                ax_speed = plt.subplot2grid((3, 2), (2, 0))
-                ax_distspeed = plt.subplot2grid((3, 2), (0, 1), rowspan=3)
+        elif args.smooth and args.speeds:
+            f = plt.figure()
+            ax_x = plt.subplot2grid((3, 2), (0, 0))
+            ax_y = plt.subplot2grid((3, 2), (1, 0))
+            ax_speed = plt.subplot2grid((3, 2), (2, 0))
+            ax_distspeed = plt.subplot2grid((3, 2), (0, 1), rowspan=3)
 
+            smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
+            xy = list(zip(*centroid))
+            xy_smoothed = [smooth(smooth_method, c, *smooth_params) for c in xy]
+
+            for ax, c, c_smoothed in zip([ax_x, ax_y], xy, xy_smoothed):
+                ax.plot(c, color='blue', alpha=0.5)
+                ax.plot(c_smoothed, lw=2, color='green')
+
+            dxy = np.diff(np.array(xy), axis=1)
+            ds = np.linalg.norm(dxy, axis=0)
+            ax_speed.plot(ds)
+            ax_distspeed.hist(ds, 500, histtype='stepfilled', alpha=0.5, normed=True)
+
+        elif args.smooth:
+            f, axs = plt.subplots(2, sharex=True)
+            for ax, data in zip(axs, zip(*centroid)):
                 smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
-                xy = list(zip(*centroid))
-                xy_smoothed = [smooth(smooth_method, c, *smooth_params) for c in xy]
+                data_smoothed = smooth(smooth_method, data, *smooth_params)
+                ax.plot(data, color='blue', alpha=0.5)
+                ax.plot(data_smoothed, lw=2, color='green')
 
-                for ax, c, c_smoothed in zip([ax_x, ax_y], xy, xy_smoothed):
-                    ax.plot(c, color='blue', alpha=0.5)
-                    ax.plot(c_smoothed, lw=2, color='green')
+        else:
+            f, axs = plt.subplots(2, sharex=True)
+            for ax, data in zip(axs, zip(*centroid)):
+                ax.plot(data, color='blue')
 
-                dxy = np.diff(np.array(xy), axis=1)
-                ds = np.linalg.norm(dxy, axis=0)
-                ax_speed.plot(ds)
-                ax_distspeed.hist(ds, 500, histtype='stepfilled', alpha=0.5, normed=True)
+        plt.show()
 
-            elif args.smooth:
-                f, axs = plt.subplots(2, sharex=True)
-                for ax, data in zip(axs, zip(*centroid)):
-                    smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
-                    data_smoothed = smooth(smooth_method, data, *smooth_params)
-                    ax.plot(data, color='blue', alpha=0.5)
-                    ax.plot(data_smoothed, lw=2, color='green')
+    if args.waldo:
+        sys.path.append(WALDO_CODE)
+        from shared.wio.file_manager import get_timeseries
 
-            else:
-                f, axs = plt.subplots(2, sharex=True)
-                for ax, data in zip(axs, zip(*centroid)):
-                    ax.plot(data, color='blue')
+        timestamp = os.path.basename(args.data_set)
+        ext_bid = timestamp + '_' + format(args.blob_id, '05d')
 
-            plt.show()
+        times, data = get_timeseries(ext_bid, 'xy')
+
+        import pdb;pdb.set_trace()
 
 if __name__ == '__main__':
     sys.exit(main())
