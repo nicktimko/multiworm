@@ -13,6 +13,7 @@ import numbers
 import numpy as np
 import scipy.optimize as spo
 import scipy.stats as sps
+import scipy.signal as ss
 
 import multiworm
 import multiworm.analytics.sgolay
@@ -21,6 +22,9 @@ import where
 WALDO_LOC = os.path.join(os.path.dirname(__file__), '..', 'Waldo')
 WALDO_CODE = os.path.join(WALDO_LOC, 'code')
 WALDO_DATA = os.path.join(WALDO_LOC, 'data', 'worms')
+
+def IQR(dist):
+    return np.percentile(dist, 75) - np.percentile(dist, 25)
 
 def head_and_tail(linegen):
     try:
@@ -137,21 +141,43 @@ def sgolay(series, window, order):
     order = int(order)
     return multiworm.analytics.sgolay.savitzky_golay(series, window, order)
 
+STOCK_METHODS = [
+    'boxcar', 'triang', 'blackman', 'hamming', 'hann', 'bartlett', 
+    'flattop', 'parzen', 'bohman', 'blackmanharris', 'nuttall', 'barthann', 
+    'kaiser', 'gaussian', 'general_gaussian', 'slepian', 'chebwin'
+]
 SMOOTH_METHODS = {
-    'sgolay': sgolay
+    'sgolay': sgolay,
 }
 
-def smooth(method, series, *params):
-    if method not in SMOOTH_METHODS:
-        raise ValueError('Unknown method.')
+def smooth(method, series, winlen, *params):
+    if method in SMOOTH_METHODS:
+        return SMOOTH_METHODS[method](series, winlen, *params)
+    
+    try:
+        winlen = int(winlen) // 2 * 2 + 1 # make it odd, rounding up
+        half_win = winlen // 2
+        wintype = (method,) + tuple(int(x) for x in params)
+        fir_win = ss.get_window(wintype, winlen)
+    except ValueError:
+        raise ValueError('Unrecognized smoothing type')
 
-    return SMOOTH_METHODS[method](series, *params)
+    b = fir_win / sum(fir_win)
+    a = [1]
+    #zi = ss.lfiltic(b, a)
+    #zi = series[0] * np.ones(len(b) - 1)
+    return ss.lfilter(b, a, series)[winlen-1:]
 
 def speed_dist(centroid):
     Ellipsis
 
-def waldo_pull(exp_id):
-    pass
+def waldo_pull(data_set, bid):
+    sys.path.append(WALDO_CODE)
+    from shared.wio.file_manager import get_timeseries
+
+    ext_bid = '{}_{:05d}'.format(data_set, bid)
+
+    return get_timeseries(ext_bid, 'xy')
 
 def main(argv=None):
     if argv is None:
@@ -178,8 +204,12 @@ def main(argv=None):
     parser.add_argument('--speeds', action='store_true', help='Distribution '
         'of speeds (requires --smooth ...)')
     parser.add_argument('--frames', type=int, nargs=2, help='Start/stop frames')
+    parser.add_argument('--subsample', type=int, default=1, 
+        help='Subsample speed by this many frames')
     parser.add_argument('--waldo', action='store_true', help='Pull data from '
         'Waldo-processed files')
+    parser.add_argument('--noshow', action='store_true', help="Don't show "
+        "the plot")
 
     args = parser.parse_args()
 
@@ -191,9 +221,10 @@ def main(argv=None):
         print('Blob ID {0} not found.'.format(args.blob_id), file=sys.stderr)
         sys.exit(1)
 
-    if args.smooth and args.smooth[0] not in SMOOTH_METHODS:
+    ALL_METHODS = SMOOTH_METHODS.keys() + STOCK_METHODS
+    if args.smooth and args.smooth[0] not in ALL_METHODS:
         print('Smoothing method "{}" not valid.  Must be one of: {}'
-            .format(args.smooth[0], ', '.join(SMOOTH_METHODS)), file=sys.stderr)
+            .format(args.smooth[0], ', '.join(ALL_METHODS)), file=sys.stderr)
         sys.exit(1)
 
     file_no, offset = experiment.summary[['file_no', 'offset']][experiment.bs_mapping[args.blob_id]]
@@ -223,10 +254,17 @@ def main(argv=None):
     fld('Found at', *blob['centroid'][0])
     fld('Lost at', *blob['centroid'][-1])
 
-    if args.xy or args.spec or args.dist or args.smooth:
+    if args.xy or args.spec or args.dist or args.smooth or args.waldo:
         import matplotlib.pyplot as plt
 
-        centroid = excise_frames(blob, *args.frames) if args.frames else blob['centroid']
+        if args.waldo:
+            times, centroid = waldo_pull(os.path.basename(args.data_set), args.blob_id)
+            if centroid is None:
+                print("Blob ID {} exists, but has no Waldo data."
+                        .format(args.blob_id), file=sys.stderr)
+                return
+        else:
+            centroid = excise_frames(blob, *args.frames) if args.frames else blob['centroid']
 
         if args.spec:
             spectrogram(centroid)
@@ -237,8 +275,8 @@ def main(argv=None):
         elif args.smooth and args.speeds:
             f = plt.figure()
             ax_x = plt.subplot2grid((3, 2), (0, 0))
-            ax_y = plt.subplot2grid((3, 2), (1, 0))
-            ax_speed = plt.subplot2grid((3, 2), (2, 0))
+            ax_y = plt.subplot2grid((3, 2), (1, 0), sharex=ax_x)
+            ax_speed = plt.subplot2grid((3, 2), (2, 0), sharex=ax_x)
             ax_distspeed = plt.subplot2grid((3, 2), (0, 1), rowspan=3)
 
             smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
@@ -249,10 +287,24 @@ def main(argv=None):
                 ax.plot(c, color='blue', alpha=0.5)
                 ax.plot(c_smoothed, lw=2, color='green')
 
-            dxy = np.diff(np.array(xy), axis=1)
+            dxy = np.diff(np.array(xy_smoothed)[...,::args.subsample], axis=1)
+            print(len(dxy), len(xy_smoothed))
+            #import pdb;pdb.set_trace()
             ds = np.linalg.norm(dxy, axis=0)
             ax_speed.plot(ds)
-            ax_distspeed.hist(ds, 500, histtype='stepfilled', alpha=0.5, normed=True)
+            #bins = np.ceil(2 * len(ds)**(1/3)) # Rice's Rule
+            bins = np.ceil(np.ptp(ds) * len(ds)**(1/3) / (2 * IQR(ds))) # Freedman–Diaconis' choice
+            ax_distspeed.hist(ds, bins, histtype='stepfilled', alpha=0.5, normed=True)
+
+            decades = range(10, 100, 10)
+            deciles = np.percentile(ds, decades)
+
+            print("\n{:>7s} | {:<s}".format('%ile', 'Speed (px/frame)'))
+            print("  -------------------")
+            for pct, pctile in zip(decades, deciles):
+                print("{:>7.0f} | {:6.3f}".format(pct, pctile))
+
+            #ax_distspeed.set_yscale('log')
 
         elif args.smooth:
             f, axs = plt.subplots(2, sharex=True)
@@ -267,18 +319,9 @@ def main(argv=None):
             for ax, data in zip(axs, zip(*centroid)):
                 ax.plot(data, color='blue')
 
-        plt.show()
+        if not args.noshow:
+            plt.show()
 
-    if args.waldo:
-        sys.path.append(WALDO_CODE)
-        from shared.wio.file_manager import get_timeseries
-
-        timestamp = os.path.basename(args.data_set)
-        ext_bid = timestamp + '_' + format(args.blob_id, '05d')
-
-        times, data = get_timeseries(ext_bid, 'xy')
-
-        import pdb;pdb.set_trace()
 
 if __name__ == '__main__':
     sys.exit(main())
