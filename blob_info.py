@@ -56,7 +56,7 @@ def fit_gaussian(x, num_bins=200):
     # Target function
     fitfunc = lambda p, x: normpdf(x, p[0], p[1])
 
-    # Distance to the target function 
+    # Distance to the target function
     errfunc = lambda p, x, y: fitfunc(p, x) - y
 
     # Initial guess for the parameters
@@ -142,8 +142,8 @@ def sgolay(series, window, order):
     return multiworm.analytics.sgolay.savitzky_golay(series, window, order)
 
 STOCK_METHODS = [
-    'boxcar', 'triang', 'blackman', 'hamming', 'hann', 'bartlett', 
-    'flattop', 'parzen', 'bohman', 'blackmanharris', 'nuttall', 'barthann', 
+    'boxcar', 'triang', 'blackman', 'hamming', 'hann', 'bartlett',
+    'flattop', 'parzen', 'bohman', 'blackmanharris', 'nuttall', 'barthann',
     'kaiser', 'gaussian', 'general_gaussian', 'slepian', 'chebwin'
 ]
 SMOOTH_METHODS = {
@@ -153,7 +153,7 @@ SMOOTH_METHODS = {
 def smooth(method, series, winlen, *params):
     if method in SMOOTH_METHODS:
         return SMOOTH_METHODS[method](series, winlen, *params)
-    
+
     try:
         winlen = int(winlen) // 2 * 2 + 1 # make it odd, rounding up
         half_win = winlen // 2
@@ -204,7 +204,7 @@ def main(argv=None):
     parser.add_argument('--speeds', action='store_true', help='Distribution '
         'of speeds (requires --smooth ...)')
     parser.add_argument('--frames', type=int, nargs=2, help='Start/stop frames')
-    parser.add_argument('--subsample', type=int, default=1, 
+    parser.add_argument('--subsample', type=int, default=1,
         help='Subsample speed by this many frames')
     parser.add_argument('--waldo', action='store_true', help='Pull data from '
         'Waldo-processed files')
@@ -236,7 +236,7 @@ def main(argv=None):
 
     blob = experiment.parse_blob(args.blob_id)
     if blob is None:
-        print("Blob ID {} exists, but has no data.".format(args.blob_id), 
+        print("Blob ID {} exists, but has no data.".format(args.blob_id),
             file=sys.stderr)
         return
 
@@ -281,6 +281,7 @@ def main(argv=None):
 
             smooth_method, smooth_params = args.smooth[0], args.smooth[1:]
             xy = list(zip(*centroid))
+            print(xy)
             xy_smoothed = [smooth(smooth_method, c, *smooth_params) for c in xy]
 
             for ax, c, c_smoothed in zip([ax_x, ax_y], xy, xy_smoothed):
@@ -330,7 +331,7 @@ if __name__ == '__main__':
 '''
             else: # show X and Y over frames
                 fig, axs = plt.subplots(2, sharex=True)
-                speed = 
+                speed =
                 for ax, data in zip(axs, zip(*centroid)):
                     if args.smooth:
                         smooth_method, smooth_params = args.smooth[0], args.smooth[1:]

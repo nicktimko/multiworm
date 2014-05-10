@@ -56,11 +56,11 @@ def main():
 
     analyzer = multiworm.analytics.ExperimentAnalyzer()
     analyzer.add_analysis_method(noise_est)
-    #analyzer.add_analysis_method(speed_est)
+    analyzer.add_analysis_method(speed_est)
 
     analyzer.analyze(blob_gen)
 
-    data = analyzer.result_dict()
+    data = analyzer.results()
 
     if args.json:
         print(json.dumps(data, indent=4))

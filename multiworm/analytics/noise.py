@@ -61,7 +61,7 @@ class NoiseEstimator(AnalysisMethod):
     """
     Attempt to determine the amount of noise present in some worm recordings.
     """
-    def __init__(self, **config):
+    def __init__(self):
         self.std_devs = []
         self.means = []
 
@@ -80,9 +80,6 @@ class NoiseEstimator(AnalysisMethod):
         self.means.append(means)
 
     def result(self):
-        return self.means, self.std_devs
-
-    def result_dict(self):
 
         mean_mean = np.mean(self.means, axis=0)
         mean_std_dev = np.mean(self.std_devs, axis=0)

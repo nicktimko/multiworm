@@ -19,10 +19,10 @@ class ExperimentAnalyzer(object):
             for analyzer in self.analyzers:
                 analyzer.process_blob(blob)
 
-    def result_dict(self):
+    def results(self):
         data = {}
         for analyzer in self.analyzers:
-            data.update(analyzer.result_dict())
+            data.update(analyzer.result())
 
         return data
 
