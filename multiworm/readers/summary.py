@@ -13,6 +13,7 @@ import glob
 from collections import defaultdict
 
 import numpy as np
+import networkx as nx
 
 from ..core import MWTSummaryError
 from ..util import alternate, dtype
@@ -40,9 +41,9 @@ def find(directory):
 
     return summary, basename
 
-def parse(file_path):
+def parse(file_path, graph=False):
     """
-    Parses the summary file at *filepath*, and returns a Numpy structured 
+    Parses the summary file at *filepath*, and returns a Numpy structured
     array containing the following columns:
 
         1. `bid`: ID
@@ -57,6 +58,9 @@ def parse(file_path):
     section_delims = {'%': 'events', '%%': 'lost_and_found', '%%%': 'offsets'}
     active_blobs = set()
     frame_times = []
+    if graph:
+        digraph = nx.DiGraph()
+
     with open(file_path, 'r') as f:
         for line_num, line in enumerate(f, start=1):
             # store all blob locations and remove them from end of line.
@@ -71,6 +75,9 @@ def parse(file_path):
             frame_times.append(time)
 
             if len(line) == 15:
+                # if there are only 15 fields (which would mean no %/%%/%%%
+                # sections), nothing was lost/found on this frame so there
+                # isn't anything left to do.
                 continue
             elif len(line) < 15:
                 raise MWTSummaryError("Malformed summary file, line {} has "
@@ -101,6 +108,14 @@ def parse(file_path):
                 blobs_summary[b]['died_f'] = frame - 1
                 active_blobs.discard(b)
 
+
+            if graph:
+                for parent, child in zip(lost_bids, found_bids):
+                    if parent == 0:
+                        digraph.add_node(child)
+                    elif child != 0:
+                        digraph.add_edge(parent, child)
+
         # wrap up blob ends with the time
         for bid in active_blobs:
             blobs_summary[bid]['died'] = time
@@ -114,12 +129,15 @@ def parse(file_path):
     blobs_summary_recarray = np.zeros((len(blobs_summary),), dtype=SUMMARY_FIELDS)
     for i, blob in enumerate(six.iteritems(blobs_summary)):
         bid, bdata = blob
-        blobs_summary_recarray[i] = (bid, 
+        blobs_summary_recarray[i] = (bid,
                 bdata['location'][0], bdata['location'][1],
-                bdata['born'], bdata['born_f'], 
+                bdata['born'], bdata['born_f'],
                 bdata['died'], bdata['died_f'])
 
-    return blobs_summary_recarray, frame_times
+    if graph:
+        return blobs_summary_recarray, frame_times, digraph
+    else:
+        return blobs_summary_recarray, frame_times
 
 def make_mapping(summary_data):
     """

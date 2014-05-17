@@ -17,9 +17,9 @@ class Experiment(object):
     """
     Provides interfaces for Multi-Worm Tracker experiment data.
 
-    Provide the path to the experiment data in order to initialize.  Next, 
-    pass filter functions to :func:`add_summary_filter` and/or 
-    :func:`add_filter`.  Then call :func:`load_summary` to index the 
+    Provide the path to the experiment data in order to initialize.  Next,
+    pass filter functions to :func:`add_summary_filter` and/or
+    :func:`add_filter`.  Then call :func:`load_summary` to index the
     location of all possible good blobs.
     """
     def __init__(self, directory):
@@ -29,7 +29,7 @@ class Experiment(object):
         self._find_images()
 
         self.summary = None
-        
+
         self.summary_filters = []
         self.filters = []
 
@@ -59,28 +59,32 @@ class Experiment(object):
 
     def add_summary_filter(self, f):
         """
-        Add a function `f` that can be passed a summary Numpy structured 
+        Add a function `f` that can be passed a summary Numpy structured
         array and removes undesirable rows.
         """
         self.summary_filters.append(f)
 
     def add_filter(self, f):
         """
-        Add a function `f` that can be passed a fully parsed blobs_data item 
+        Add a function `f` that can be passed a fully parsed blobs_data item
         and returns whether or not it should be kept.
         """
         # The item (key/value pair) is passed, but the filter should only
         # bother with the value.
         self.filters.append(lambda item: f(item[1]))
 
-    def load_summary(self):
+    def load_summary(self, graph=False):
         """
         Loads the location of blobs in the \*.blobs data files.
 
-        Must be called prior to attempting to access any blob with 
+        Must be called prior to attempting to access any blob with
         :func:`good_blobs`, :func:`parse_blob`, or the like.
         """
-        bs, self.frame_times = summary.parse(self.summary_file)
+        if graph:
+            bs, self.frame_times, self.collision_graph = summary.parse(
+                    self.summary_file, graph=True)
+        else:
+            bs, self.frame_times = summary.parse(self.summary_file)
         # check size is non-zero to not error out on empty data sets
         if bs.size:
             file_refs = bs['file_no'].max() + 1
@@ -89,7 +93,7 @@ class Experiment(object):
                 raise MWTDataError("Summary refers to missing blobs files "
                         "({} out of {} found).".format(file_count, file_refs))
 
-        # filter and create blob id mapping 
+        # filter and create blob id mapping
         self.summary = multitransform(self.summary_filters, bs)
         self.bs_mapping = summary.make_mapping(self.summary)
 
@@ -123,7 +127,7 @@ class Experiment(object):
 
     def parse_blob(self, bid, parser=None):
         """
-        Parses the specified blob `parser` that 
+        Parses the specified blob `parser` that
         accepts a generator returning all raw data lines from the blob.
 
         Parameters
@@ -134,7 +138,7 @@ class Experiment(object):
         Keyword Arguments
         -----------------
         parser : callable
-            A function that accepts one positional argument, a generator 
+            A function that accepts one positional argument, a generator
             that yields all data lines from blob `bid`.  The default parser
             is :func:`.blob.parse`.
 
@@ -149,7 +153,7 @@ class Experiment(object):
 
     def all_blobs(self, parser=None):
         """
-        Generator that parses and yields all the blobs in the summary data 
+        Generator that parses and yields all the blobs in the summary data
         using :func:`parse_blob`.
         """
         for bid in self.summary['bid']:
@@ -158,10 +162,10 @@ class Experiment(object):
 
     def good_blobs(self, parser=None):
         """
-        Generator that produces filtered blobs.  You could route the output 
-        to a database, memory, or whereever.  See :func:`parse_blob` for how 
-        the blobs are parsed.  Note that the filters provided in 
-        :func:`add_filter` (if any) must be compatible with (accept) what 
+        Generator that produces filtered blobs.  You could route the output
+        to a database, memory, or whereever.  See :func:`parse_blob` for how
+        the blobs are parsed.  Note that the filters provided in
+        :func:`add_filter` (if any) must be compatible with (accept) what
         the parser returns.
         """
         for blob in multifilter(self.filters, self.all_blobs(parser=parser)):
@@ -170,7 +174,7 @@ class Experiment(object):
 
     # def load_blobs(self):
     #     """
-    #     Loads all blobs into memory.  Probably will crash for a typical 
+    #     Loads all blobs into memory.  Probably will crash for a typical
     #     experiment if not a 64-bit OS with a healthy amount of RAM.
     #     """
     #     for bid, blob in self.good_blobs():
@@ -178,11 +182,11 @@ class Experiment(object):
 
     def progress(self):
         """
-        A crude indicator of progress as blobs are processed.  
+        A crude indicator of progress as blobs are processed.
 
-        Returns the number of blobs parsed (including those filtered out) out 
-        of the total number of blobs that will be.  If called after every 
-        output from :func:`good_blobs`, and there are any filters that have 
+        Returns the number of blobs parsed (including those filtered out) out
+        of the total number of blobs that will be.  If called after every
+        output from :func:`good_blobs`, and there are any filters that have
         an effect, the first number will skip.
         """
         return self.blobs_parsed, self.max_blobs
