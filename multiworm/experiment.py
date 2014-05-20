@@ -12,6 +12,7 @@ from .core import MWTDataError
 from .readers import blob, summary, image
 from .util import multifilter, multitransform
 from .filters import exists_in_frame
+from .blob import Blob
 
 class Experiment(object):
     """
@@ -38,6 +39,9 @@ class Experiment(object):
         self.max_blobs = None
 
         self.blobs_parsed = 0
+
+    def __getitem__(self, key):
+        return Blob(self, key)
 
     def _find_summary_file(self):
         """
