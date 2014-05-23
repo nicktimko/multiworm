@@ -18,6 +18,8 @@ from . import defaults
 
 local_settings = os.environ.get('MULTIWORM_SETTINGS')
 
+REQUIRE_SETTINGS_MODULE = False
+
 class Settings(object):
     def __init__(self, settings_module):
         # copy the global settings into the object
@@ -27,7 +29,11 @@ class Settings(object):
 
         self.SETTINGS_MODULE = settings_module
 
-        if settings_module is not None:
+        if REQUIRE_SETTINGS_MODULE:
+            if settings_module is None:
+                raise EnvironmentError("MULTIWORM_SETTINGS not specified")
+
+        if settings_module:
             try:
                 file, pathname, desc = imp.find_module(settings_module)
                 local_settings = imp.load_module(settings_module, file, pathname, desc)

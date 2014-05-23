@@ -15,6 +15,8 @@ import scipy.optimize as spo
 import scipy.stats as sps
 import scipy.signal as ss
 
+os.environ.setdefault('MULTIWORM_SETTINGS', 'multiworm_settings')
+
 import multiworm
 import multiworm.analytics.sgolay
 import where
@@ -186,9 +188,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Get basic information '
         'about a particular blob.')
 
-    parser.add_argument('data_set', help='The location of the data set. If '
-        'names specified in a lookup file can be selected with a prefix of '
-        '{0}.'.format(where.named_location).replace('%', '%%'))
+    parser.add_argument('data_set', help='The location of the data set.')
     parser.add_argument('blob_id', type=int, help='The blob ID in the '
         'data set to summarize.')
     parser.add_argument('-ht', '--head-and-tail', action='store_true')
@@ -213,15 +213,15 @@ def main(argv=None):
 
     args = parser.parse_args()
 
-    args.data_set = where.where(args.data_set)
+    #args.data_set = where.where(args.data_set)
 
-    experiment = multiworm.Experiment(args.data_set)
+    experiment = multiworm.Experiment(experiment_id=args.data_set)
     experiment.load_summary()
     if args.blob_id not in experiment.bs_mapping:
         print('Blob ID {0} not found.'.format(args.blob_id), file=sys.stderr)
         sys.exit(1)
 
-    ALL_METHODS = SMOOTH_METHODS.keys() + STOCK_METHODS
+    ALL_METHODS = list(six.iterkeys(SMOOTH_METHODS)) + STOCK_METHODS
     if args.smooth and args.smooth[0] not in ALL_METHODS:
         print('Smoothing method "{}" not valid.  Must be one of: {}'
             .format(args.smooth[0], ', '.join(ALL_METHODS)), file=sys.stderr)

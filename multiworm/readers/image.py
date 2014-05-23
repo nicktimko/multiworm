@@ -8,8 +8,7 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
-import os.path
-import glob
+import pathlib
 import re
 
 def find(directory, basename):
@@ -22,8 +21,8 @@ def find(directory, basename):
     image_re_mask = re.compile(re.escape(basename)
             + r'(?P<frame>[0-9]*)\.png$')
 
-    for image in glob.iglob(os.path.join(directory, basename + '*.png')):
-        match = image_re_mask.search(image)
+    for image in directory.glob(basename + '*.png'):
+        match = image_re_mask.search(str(image))
         frame_num = match.group('frame')
         image_files[int('0' + frame_num) / 1000] = image
 

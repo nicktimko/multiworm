@@ -5,6 +5,7 @@ from __future__ import (
 import six
 
 import sys
+import os
 import argparse
 import functools
 
@@ -12,9 +13,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
+os.environ.setdefault('MULTIWORM_SETTINGS', 'multiworm_settings')
+
 import multiworm
 from multiworm.readers import blob as blob_reader
-import where
+#import where
 
 # Derived from http://stackoverflow.com/a/2566508/194586
 # However, I claim these as below the threshold of originality
@@ -55,17 +58,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Get basic information '
         'about a particular blob.')
 
-    parser.add_argument('data_set', help='The location of the data set. If '
-        'names specified in a lookup file can be selected with a prefix of '
-        '{0}.'.format(where.named_location))
+    parser.add_argument('data_set', help='The location of the data set.')
     parser.add_argument('time', type=float, help='The time to display.  '
         'Coerced to the nearest available image if no exact match.')
 
     args = parser.parse_args(argv[1:])
 
-    args.data_set = where.where(args.data_set)
+    #args.data_set = where.where(args.data_set)
 
-    experiment = multiworm.Experiment(args.data_set)
+    experiment = multiworm.Experiment(experiment_id=args.data_set)
     experiment.load_summary()
 
     # find the closest still to the given time
@@ -74,7 +75,7 @@ def main(argv=None):
           "time)".format(time, time - args.time))
     image_file = experiment.image_files[time]
     print(image_file)
-    img = mpimg.imread(image_file)
+    img = mpimg.imread(str(image_file))
 
     # find the closest frame to the derived still time
     frame = find_nearest_index(experiment.frame_times, time) + 1

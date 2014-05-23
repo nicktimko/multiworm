@@ -8,7 +8,10 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
+import pathlib
+
 from .core import MWTDataError
+from .conf import settings
 from .readers import blob, summary, image
 from .util import multifilter, multitransform
 from .filters import exists_in_frame
@@ -18,13 +21,26 @@ class Experiment(object):
     """
     Provides interfaces for Multi-Worm Tracker experiment data.
 
-    Provide the path to the experiment data in order to initialize.  Next,
-    pass filter functions to :func:`add_summary_filter` and/or
-    :func:`add_filter`.  Then call :func:`load_summary` to index the
-    location of all possible good blobs.
+    Provide the *experiment_id* string (folder name) for the experiment
+    contained within *data_root*.  If *data_root* is not specified, it is
+    pulled from the settings file loaded from trying to import the environment
+    variable ``MULTIWORM_SETTINGS``.
+
+    Next, pass filter functions to :func:`add_summary_filter` and/or
+    :func:`add_filter`.  Then call :func:`load_summary` to index the location
+    of all possible good blobs.
     """
-    def __init__(self, directory):
-        self.directory = directory
+    def __init__(self, fullpath=None, experiment_id=None, data_root=None):
+        if fullpath:
+            self.directory = pathlib.Path(fullpath)
+        else:
+            if experiment_id is None:
+                raise ValueError('experiment_id must be provided if the full '
+                    'path to the experiment data is not.')
+            if data_root is None:
+                data_root = settings.MWT_DATA_ROOT
+            self.directory = pathlib.Path(data_root) / experiment_id
+
         self._find_summary_file()
         self._find_blobs_files()
         self._find_images()
@@ -118,7 +134,7 @@ class Experiment(object):
         Generator that yields all lines of data for blob id `bid`.
         """
         file_no, offset = self.summary[['file_no', 'offset']][self.bs_mapping[bid]]
-        with open(self.blobs_files[file_no], 'r') as f:
+        with self.blobs_files[file_no].open('r') as f:
             f.seek(offset)
             if six.next(f).rstrip() != '% {0}'.format(bid):
                 raise MWTDataError("File number/offset ({}/{}) for blob {} "

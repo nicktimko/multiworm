@@ -22,14 +22,13 @@ def find(directory, basename):
     Find all \*.blobs files in the given *path* with the specified *basename* 
     and verifies consecutiveness.  Returns a list of paths.
     """
-    blobs_files = sorted(glob.iglob(os.path.join(
-            directory, basename + '_?????k.blobs')))
+    blobs_files = sorted(directory.glob(basename + '_?????k.blobs'))
 
-    for i, fn in enumerate(blobs_files):
-        expected_fn = '{0}_{1:05}k.blobs'.format(basename, i)
-        if not fn.endswith(expected_fn):
+    for i, fp in enumerate(blobs_files):
+        expected_fn = '{}_{:05}k.blobs'.format(basename, i)
+        if fp.name != expected_fn:
             raise MWTBlobsError("Experiment data missing a consecutive "
-                    "blobs file. ({0})".format(expected_fn))
+                    "blobs file. ({})".format(expected_fn))
 
     return blobs_files
 

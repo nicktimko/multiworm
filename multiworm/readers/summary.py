@@ -8,8 +8,7 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
-import os.path
-import glob
+import pathlib
 from collections import defaultdict
 
 import numpy as np
@@ -30,20 +29,21 @@ SUMMARY_FIELDS = dtype([
 
 def find(directory):
     try:
-        summaries = glob.glob(os.path.join(directory, '*.summary'))
+        summaries = list(directory.glob('*.summary'))
         if len(summaries) > 1:
             raise MWTSummaryError("Multiple summary files in specified directory; ambiguous")
         summary = summaries[0]
     except IndexError:
-        raise MWTSummaryError("Could not find summary file in target path")
+        raise MWTSummaryError("Could not find summary file in target path: {}"
+                              .format(directory))
 
-    basename = os.path.splitext(os.path.basename(summary))[0]
+    basename = summary.stem
 
     return summary, basename
 
-def parse(file_path, graph=False):
+def parse(path, graph=False):
     """
-    Parses the summary file at *filepath*, and returns a Numpy structured
+    Parses the summary file at *path*, and returns a Numpy structured
     array containing the following columns:
 
         1. `bid`: ID
@@ -61,7 +61,7 @@ def parse(file_path, graph=False):
     if graph:
         digraph = nx.DiGraph()
 
-    with open(file_path, 'r') as f:
+    with path.open('r') as f:
         for line_num, line in enumerate(f, start=1):
             # store all blob locations and remove them from end of line.
             line = line.split()

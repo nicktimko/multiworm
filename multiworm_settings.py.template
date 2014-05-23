@@ -1,0 +1,4 @@
+import pathlib
+
+MWT_DATA_ROOT = pathlib.Path('/home/projects/worm_movement/Data/MWT_RawData')
+# MWT_DATA_ROOT = pathlib.Path() / '..' / 'Waldo' / 'data' / 'mwt'

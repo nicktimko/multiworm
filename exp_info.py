@@ -6,14 +6,16 @@ import six
 from six.moves import zip, range, map
 
 import sys
-import os.path
+import os
 import argparse
 
 import numpy as np
 
+os.environ.setdefault('MULTIWORM_SETTINGS', 'multiworm_settings')
+
 import multiworm
 import multiworm.analytics
-import where
+#import where
 import blob_info
 
 WALDO_LOC = os.path.join(os.path.dirname(__file__), '..', 'Waldo')
@@ -72,9 +74,10 @@ def main(argv=None):
         'about an experiment.')
 
     parser.add_argument('data_set',
-        help='The location of the data set. If names specified in a lookup '
-        'file can be selected with a prefix of {0}.'
-            .format(where.named_location).replace('%', '%%'))
+        help='The location of the data set.'#' If names specified in a lookup '
+        #'file can be selected with a prefix of {0}.'
+        #    .format(where.named_location).replace('%', '%%')
+        )
     parser.add_argument('-n', '--noise', action='store_true',
         help='Estimate the amount of noise present in the centroid data. '
         'Plot available.')
@@ -87,12 +90,12 @@ def main(argv=None):
 
     args = parser.parse_args()
 
-    args.data_set = where.where(args.data_set)
+    #args.data_set = where.where(args.data_set)
 
     if args.waldo:
         waldo_data(os.path.basename(args.data_set))
     else:
-        experiment = multiworm.Experiment(args.data_set)
+        experiment = multiworm.Experiment(experiment_id=args.data_set)
         experiment.load_summary()
 
         print('Experiment summary file: {}'.format(experiment.summary_file))
