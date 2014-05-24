@@ -99,15 +99,6 @@ def parse(file_path, graph=False):
 
             # store all blob start and end times and remove them from end of line.
             lost_bids, found_bids = alternate([int(i) for i in data['lost_and_found']])
-            for b in found_bids:
-                blobs_summary[b]['born'] = time
-                blobs_summary[b]['born_f'] = frame
-                active_blobs.add(b)
-            for b in lost_bids:
-                blobs_summary[b]['died'] = time
-                blobs_summary[b]['died_f'] = frame - 1
-                active_blobs.discard(b)
-
 
             if graph:
                 for parent, child in zip(lost_bids, found_bids):
@@ -116,10 +107,25 @@ def parse(file_path, graph=False):
                     elif child != 0:
                         digraph.add_edge(parent, child)
 
+            for b in found_bids:
+                blobs_summary[b]['born'] = time
+                blobs_summary[b]['born_f'] = frame
+                if graph and b != 0:
+                    digraph.node[b]['born'] = frame
+                active_blobs.add(b)
+            for b in lost_bids:
+                blobs_summary[b]['died'] = time
+                blobs_summary[b]['died_f'] = frame - 1
+                if graph and b != 0:
+                    digraph.node[b]['died'] = frame
+                active_blobs.discard(b)
+
         # wrap up blob ends with the time
         for bid in active_blobs:
             blobs_summary[bid]['died'] = time
             blobs_summary[bid]['died_f'] = frame
+            if graph and bid != 0:
+                digraph.node[bid]['died'] = frame
 
     blobs_summary = dict(filter(
             lambda it: 'location' in it[1], six.iteritems(blobs_summary)
