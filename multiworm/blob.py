@@ -18,7 +18,7 @@ class Blob(object):
     def __getitem__(self, key):
         try:
             return self.summary_data[key]
-        except KeyError:
+        except LookupError:
             if self.blob_data is None:
                 self.blob_data = self.experiment.parse_blob(self.blob_id)
             return self.blob_data[key]
