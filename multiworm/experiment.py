@@ -16,6 +16,7 @@ from .readers import blob, summary, image
 from .util import multifilter, multitransform
 from .filters import exists_in_frame
 from .blob import Blob
+from .metadata import MetadataManager
 
 class Experiment(object):
     """
@@ -45,6 +46,8 @@ class Experiment(object):
         self._find_blobs_files()
         self._find_images()
 
+        #self.metadata = MetadataManager(self.directory, self.basename)
+
         self.summary = None
 
         self.summary_filters = []
@@ -55,6 +58,10 @@ class Experiment(object):
         self.max_blobs = None
 
         self.blobs_parsed = 0
+
+    def __iter__(self):
+        for bid in self.summary['bid']:
+            yield bid, self[bid]
 
     def __getitem__(self, key):
         return Blob(self, key)
