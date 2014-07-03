@@ -60,8 +60,11 @@ class Experiment(object):
         self.blobs_parsed = 0
 
     def __iter__(self):
-        for bid in self.summary['bid']:
-            yield bid, self[bid]
+        return iter(self.summary['bid'])
+
+    def blobs(self):
+        for blob_id in self:
+            yield blob_id, self[blob_id]
 
     def __getitem__(self, key):
         return Blob(self, key)
