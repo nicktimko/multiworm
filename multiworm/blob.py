@@ -21,4 +21,6 @@ class Blob(object):
         except LookupError:
             if self.blob_data is None:
                 self.blob_data = self.experiment.parse_blob(self.blob_id)
+                if self.blob_data is None:
+                    self.blob_data = {}
             return self.blob_data[key]
