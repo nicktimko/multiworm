@@ -16,7 +16,6 @@ from .readers import blob, summary, image
 from .util import multifilter, multitransform
 from .filters import exists_in_frame
 from .blob import Blob
-from .metadata import MetadataManager
 
 class Experiment(object):
     """
