@@ -33,6 +33,7 @@ class Experiment(object):
     def __init__(self, fullpath=None, experiment_id=None, data_root=None):
         if fullpath:
             self.directory = pathlib.Path(fullpath)
+            self.experiment_id = directory.stem
         else:
             if experiment_id is None:
                 raise ValueError('experiment_id must be provided if the full '
@@ -40,6 +41,7 @@ class Experiment(object):
             if data_root is None:
                 data_root = settings.MWT_DATA_ROOT
             self.directory = pathlib.Path(data_root) / experiment_id
+            self.experiment_id = experiment_id
 
         self._find_summary_file()
         self._find_blobs_files()
