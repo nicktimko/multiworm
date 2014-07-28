@@ -33,7 +33,7 @@ class Experiment(object):
     def __init__(self, fullpath=None, experiment_id=None, data_root=None):
         if fullpath:
             self.directory = pathlib.Path(fullpath)
-            self.experiment_id = directory.stem
+            self.experiment_id = self.directory.stem
         else:
             if experiment_id is None:
                 raise ValueError('experiment_id must be provided if the full '
