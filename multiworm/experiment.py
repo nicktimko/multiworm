@@ -59,6 +59,7 @@ class Experiment(object):
         self.max_blobs = None
 
         self.blobs_parsed = 0
+        self._load_summary()
 
     def __iter__(self):
         return iter(self.summary['bid'])
@@ -105,6 +106,9 @@ class Experiment(object):
         self.filters.append(lambda item: f(item[1]))
 
     def load_summary(self, graph=False):
+        pass
+
+    def _load_summary(self, graph=True):
         """
         Loads the location of blobs in the \*.blobs data files.
 
