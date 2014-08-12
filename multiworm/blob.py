@@ -8,19 +8,88 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
-class Blob(object):
-    def __init__(self, experiment, blob_id):
+import collections
+
+import numpy as np
+
+SERIES_FIELDS = [
+    'frame',
+    'time',
+    'centroid',
+    'area',
+    'std_vector',
+    'std_ortho',
+    'size',
+    'midline',
+    'contour_start',
+    'contour_encode_len',
+    'contour_encoded',
+    'midline',
+    'contour_start',
+    'contour_encode_len',
+    'contour_encoded',
+]
+
+class Blob(collections.Mapping):
+    def __init__(self, experiment, blob_id, fields=None):
         self.experiment = experiment
         self.blob_id = blob_id
+
         self.summary_data = self.experiment.summary_data(self.blob_id)
         self.blob_data = None
+
+        self.empty = self._peeper()
+        self.crop(fields)
+
+    def crop(self, fields):
+        if fields is None:
+            self.fields = SERIES_FIELDS[:]
+        else:
+            self.fields = fields
+
+        return self # chainable
+
+    def __len__(self):
+        return len(self.fields)
+
+    def __iter__(self):
+        return iter(self.fields)
 
     def __getitem__(self, key):
         try:
             return self.summary_data[key]
         except LookupError:
+            if self.empty:
+                return []
+
             if self.blob_data is None:
                 self.blob_data = self.experiment.parse_blob(self.blob_id)
-                if self.blob_data is None:
-                    self.blob_data = {}
+
             return self.blob_data[key]
+
+    def __getattr__(self, name):
+        try:
+            return self.summary_data[name]
+        except LookupError:
+            raise AttributeError("'Blob' object has no attribute '{}'".format(name))
+
+    def _peeper(self):
+        """
+        Check if the blob really contains any data
+
+            "Tommy, how's the peeping? Tommy. How's the peeping?
+            Tommy. Tommy. Tommy. Tommy. Tommy."
+
+                                           -- Freddie Miles
+        """
+        gen = self.experiment._blob_lines(self.blob_id)
+
+        try:
+            six.next(gen)
+        except (StopIteration, ValueError):
+            # - StopIteration raised on a zero-line blob
+            # - ValueError raised on a blob that isn't even denoted anywhere
+            #       in the blobs files (NaN in the summary data)
+            return True
+
+        return False

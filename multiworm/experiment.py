@@ -9,6 +9,7 @@ import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
 import pathlib
+import warnings
 
 from .core import MWTDataError
 from .conf import settings
@@ -47,22 +48,13 @@ class Experiment(object):
         self._find_blobs_files()
         self._find_images()
 
-        #self.metadata = MetadataManager(self.directory, self.basename)
-
         self.summary = None
-
-        self.summary_filters = []
-        self.filters = []
-
-        # Upper bound of how many blobs there will be (for array
-        # preallocation)
-        self.max_blobs = None
 
         self.blobs_parsed = 0
         self._load_summary()
 
     def __iter__(self):
-        return iter(self.summary['bid'])
+        return iter(self.summary.index)
 
     def blobs(self):
         for blob_id in self:
@@ -89,51 +81,27 @@ class Experiment(object):
         """
         self.image_files = image.find(self.directory, self.basename)
 
-    def add_summary_filter(self, f):
-        """
-        Add a function `f` that can be passed a summary Numpy structured
-        array and removes undesirable rows.
-        """
-        self.summary_filters.append(f)
+    def load_summary(self, graph=None):
+        notice = ('load_summary() is deprecated, summary file is '
+                  'automatically loaded on object initialization')
+        warnings.warn(notice, DeprecationWarning)
 
-    def add_filter(self, f):
-        """
-        Add a function `f` that can be passed a fully parsed blobs_data item
-        and returns whether or not it should be kept.
-        """
-        # The item (key/value pair) is passed, but the filter should only
-        # bother with the value.
-        self.filters.append(lambda item: f(item[1]))
-
-    def load_summary(self, graph=False):
-        pass
-
-    def _load_summary(self, graph=True):
+    def _load_summary(self):
         """
         Loads the location of blobs in the \*.blobs data files.
 
         Must be called prior to attempting to access any blob with
         :func:`good_blobs`, :func:`parse_blob`, or the like.
         """
-        if graph:
-            bs, self.frame_times, self.collision_graph = summary.parse(
-                    self.summary_file, graph=True)
-        else:
-            bs, self.frame_times = summary.parse(self.summary_file)
+        self.summary, self.frame_times, self.graph = summary.parse(self.summary_file)
+
         # check size is non-zero to not error out on empty data sets
-        if bs.size:
-            file_refs = bs['file_no'].max() + 1
+        if not self.summary.empty:
+            file_refs = int(self.summary['file_no'].max()) + 1
             file_count = len(self.blobs_files)
             if file_refs > file_count:
                 raise MWTDataError("Summary refers to missing blobs files "
                         "({} out of {} found).".format(file_count, file_refs))
-
-        # filter and create blob id mapping
-        self.summary = multitransform(self.summary_filters, bs)
-        self.bs_mapping = summary.make_mapping(self.summary)
-
-        # the maximum number of blobs we'll ever need to deal with
-        self.max_blobs = len(self.summary)
 
     def blobs_in_frame(self, frame):
         return exists_in_frame(frame)(self.summary)['bid']
@@ -142,13 +110,13 @@ class Experiment(object):
         """
         Returns summary data on blob *bid*
         """
-        return self.summary[self.bs_mapping[bid]]
+        return self.summary.loc[bid]
 
     def _blob_lines(self, bid):
         """
         Generator that yields all lines of data for blob id `bid`.
         """
-        file_no, offset = self.summary[['file_no', 'offset']][self.bs_mapping[bid]]
+        file_no, offset = self.summary[['file_no', 'offset']].loc[bid].astype(int)
         with self.blobs_files[file_no].open('r') as f:
             f.seek(offset)
             if six.next(f).rstrip() != '% {0}'.format(bid):
@@ -185,43 +153,3 @@ class Experiment(object):
         if parser is None:
             parser = blob.parse
         return parser(self._blob_lines(bid))
-
-    def all_blobs(self, parser=None):
-        """
-        Generator that parses and yields all the blobs in the summary data
-        using :func:`parse_blob`.
-        """
-        for bid in self.summary['bid']:
-            yield bid, self.parse_blob(bid, parser=parser)
-            self.blobs_parsed += 1
-
-    def good_blobs(self, parser=None):
-        """
-        Generator that produces filtered blobs.  You could route the output
-        to a database, memory, or whereever.  See :func:`parse_blob` for how
-        the blobs are parsed.  Note that the filters provided in
-        :func:`add_filter` (if any) must be compatible with (accept) what
-        the parser returns.
-        """
-        for blob in multifilter(self.filters, self.all_blobs(parser=parser)):
-            yield blob
-            blob = None # free mem
-
-    # def load_blobs(self):
-    #     """
-    #     Loads all blobs into memory.  Probably will crash for a typical
-    #     experiment if not a 64-bit OS with a healthy amount of RAM.
-    #     """
-    #     for bid, blob in self.good_blobs():
-    #         self.blobs_data[bid] = blob
-
-    def progress(self):
-        """
-        A crude indicator of progress as blobs are processed.
-
-        Returns the number of blobs parsed (including those filtered out) out
-        of the total number of blobs that will be.  If called after every
-        output from :func:`good_blobs`, and there are any filters that have
-        an effect, the first number will skip.
-        """
-        return self.blobs_parsed, self.max_blobs

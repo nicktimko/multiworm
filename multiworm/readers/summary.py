@@ -12,6 +12,7 @@ import pathlib
 from collections import defaultdict
 
 import numpy as np
+import pandas as pd
 import networkx as nx
 
 from ..core import MWTSummaryError
@@ -41,25 +42,28 @@ def find(directory):
 
     return summary, basename
 
-def parse(path, graph=False):
+def parse(path):
     """
-    Parses the summary file at *path*, and returns a Numpy structured
-    array containing the following columns:
+    Parses the summary file at *path*, and returns:
 
-        1. `bid`: ID
-        2. `file_no`: \*.blob file number
-        3. `offset`: Blob byte offset within file
-        4. `born`: Time found
-        5. `born_f`: Frame found
-        6. `died`: Time lost
-        7. `died_f`: Frame lost
+      1. a pandas.DataFrame with the following columns:
+        * `bid`: ID
+        * `file_no`: \*.blob file number
+        * `offset`: Blob byte offset within file
+        * `born`: Time found
+        * `born_f`: Frame found
+        * `died`: Time lost
+        * `died_f`: Frame lost
+
+      2. a list of "wall-clock" times corresponding to frame times
+
+      3. a networkx.DiGraph of fission and fusion events
     """
     blobs_summary = defaultdict(dict, {})
     section_delims = {'%': 'events', '%%': 'lost_and_found', '%%%': 'offsets'}
     active_blobs = set()
     frame_times = []
-    if graph:
-        digraph = nx.DiGraph()
+    digraph = nx.DiGraph()
 
     with path.open('r') as f:
         for line_num, line in enumerate(f, start=1):
@@ -94,29 +98,29 @@ def parse(path, graph=False):
 
             for b, l in zip(*alternate(data['offsets'])):
                 b = int(b)
-                fnum, offset = (int(x) for x in l.split('.'))
-                blobs_summary[b]['location'] = fnum, offset
+                (blobs_summary[b]['file_no'],
+                 blobs_summary[b]['offset']) = (int(x) for x in l.split('.'))
 
             # store all blob start and end times and remove them from end of line.
             lost_bids, found_bids = alternate([int(i) for i in data['lost_and_found']])
 
-            if graph:
-                for parent, child in zip(lost_bids, found_bids):
-                    if parent == 0:
-                        digraph.add_node(child)
-                    elif child != 0:
-                        digraph.add_edge(parent, child)
+            for parent, child in zip(lost_bids, found_bids):
+                if parent == 0:
+                    digraph.add_node(child)
+                elif child != 0:
+                    digraph.add_edge(parent, child)
 
             for b in found_bids:
                 blobs_summary[b]['born'] = time
                 blobs_summary[b]['born_f'] = frame
-                if graph and b != 0:
+                if b != 0:
                     digraph.node[b]['born'] = frame
                 active_blobs.add(b)
+
             for b in lost_bids:
                 blobs_summary[b]['died'] = time
-                blobs_summary[b]['died_f'] = frame - 1
-                if graph and b != 0:
+                blobs_summary[b]['died_f'] = frame
+                if b != 0:
                     digraph.node[b]['died'] = frame
                 active_blobs.discard(b)
 
@@ -124,29 +128,25 @@ def parse(path, graph=False):
         for bid in active_blobs:
             blobs_summary[bid]['died'] = time
             blobs_summary[bid]['died_f'] = frame
-            if graph and bid != 0:
+            if bid != 0:
                 digraph.node[bid]['died'] = frame
 
-    blobs_summary = dict(filter(
-            lambda it: 'location' in it[1], six.iteritems(blobs_summary)
-        ))
+    # Remove blobs with no data
+    # blobs_summary = dict(filter(
+    #         lambda it: 'location' in it[1], six.iteritems(blobs_summary)
+    #     ))
 
-    # convert to Numpy Structured Array
-    blobs_summary_recarray = np.zeros((len(blobs_summary),), dtype=SUMMARY_FIELDS)
-    for i, blob in enumerate(six.iteritems(blobs_summary)):
-        bid, bdata = blob
-        blobs_summary_recarray[i] = (bid,
-                bdata['location'][0], bdata['location'][1],
-                bdata['born'], bdata['born_f'],
-                bdata['died'], bdata['died_f'])
+    del blobs_summary[0] # fake blob
 
-    if graph:
-        return blobs_summary_recarray, frame_times, digraph
-    else:
-        return blobs_summary_recarray, frame_times
+    blobs_summary_df = pd.DataFrame.from_dict(blobs_summary, orient='index')
 
-def make_mapping(summary_data):
-    """
-    Create a mapping from blob IDs to the record number
-    """
-    return dict(zip(summary_data['bid'], range(len(summary_data))))
+    # pretty it up (for debugging, pointless otherwise)
+    #blobs_summary_df = blobs_summary_df[['born', 'died', 'born_f', 'died_f', 'file_no', 'offset']]
+
+    digraph = nx.freeze(digraph)
+
+    def unlock():
+        return nx.DiGraph(digraph)
+    digraph.copy = unlock
+
+    return blobs_summary_df, frame_times, digraph
