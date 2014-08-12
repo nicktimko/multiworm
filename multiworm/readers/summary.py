@@ -140,6 +140,16 @@ def parse(path):
 
     blobs_summary_df = pd.DataFrame.from_dict(blobs_summary, orient='index')
 
+    # MWT bug fixing: sometimes blobs near the start don't actually have a
+    # start time.  We're just going to drop them from analysis (they have
+    # not been emperically shown to have any data associated with them).
+    born_nan = blobs_summary_df[~np.isfinite(blobs_summary_df['born'])].index
+    died_nan = blobs_summary_df[~np.isfinite(blobs_summary_df['died'])].index
+    for term_nan in [born_nan, died_nan]:
+        if len(term_nan) != 0:
+            blobs_summary_df.drop(blobs_summary_df.index[term_nan])
+            digraph.remove_nodes_from(term_nan)
+
     # pretty it up (for debugging, pointless otherwise)
     #blobs_summary_df = blobs_summary_df[['born', 'died', 'born_f', 'died_f', 'file_no', 'offset']]
 
