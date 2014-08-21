@@ -143,6 +143,10 @@ def parse(path):
 
     blobs_summary_df = pd.DataFrame.from_dict(blobs_summary, orient='index')
 
+    # try to int-ify columns...doesn't work that well because of NA's :(
+    #int_cols = ['file_no', 'offset', 'born_f', 'died_f']
+    #blobs_summary_df[int_cols] = blobs_summary_df[int_cols].astype(int)
+
     # MWT bug fixing: sometimes blobs near the start don't actually have a
     # start time.  We're just going to drop them from analysis (they have
     # not been emperically shown to have any data associated with them).

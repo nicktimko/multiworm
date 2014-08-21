@@ -79,7 +79,9 @@ class Experiment(object):
         """
         Locate images
         """
-        self.image_files = image.find(self.directory, self.basename)
+        self.image_files = image.ImageFileOrganizer(
+                image.find(self.directory, self.basename),
+                experiment=self)
 
     def load_summary(self, graph=None):
         notice = ('load_summary() is deprecated, summary file is '
