@@ -13,8 +13,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-os.environ.setdefault('MULTIWORM_SETTINGS', 'multiworm_settings')
-
 import multiworm
 from multiworm.readers import blob as blob_reader
 #import where
@@ -28,7 +26,7 @@ def find_nearest(seq, value):
 
 def frame_parser(blob_lines, frame):
     """
-    A lighter, probably quicker, parser to just get a single frame of 
+    A lighter, probably quicker, parser to just get a single frame of
     data out of a blob.
     """
     first_line = six.next(blob_lines)

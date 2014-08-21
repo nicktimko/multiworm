@@ -15,8 +15,6 @@ import scipy.optimize as spo
 import scipy.stats as sps
 import scipy.signal as ss
 
-os.environ.setdefault('MULTIWORM_SETTINGS', 'multiworm_settings')
-
 import multiworm
 import multiworm.analytics.sgolay
 import where

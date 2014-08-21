@@ -12,7 +12,6 @@ import pathlib
 import warnings
 
 from .core import MWTDataError
-from .conf import settings
 from .readers import blob, summary, image
 from .util import multifilter, multitransform
 from .filters import exists_in_frame
@@ -24,14 +23,13 @@ class Experiment(object):
 
     Provide the *experiment_id* string (folder name) for the experiment
     contained within *data_root*.  If *data_root* is not specified, it is
-    pulled from the settings file loaded from trying to import the environment
-    variable ``MULTIWORM_SETTINGS``.
+    the current working directory.
 
     Next, pass filter functions to :func:`add_summary_filter` and/or
     :func:`add_filter`.  Then call :func:`load_summary` to index the location
     of all possible good blobs.
     """
-    def __init__(self, fullpath=None, experiment_id=None, data_root=None):
+    def __init__(self, fullpath=None, experiment_id=None, data_root=''):
         if fullpath:
             self.directory = pathlib.Path(fullpath)
             self.experiment_id = self.directory.stem
@@ -39,8 +37,6 @@ class Experiment(object):
             if experiment_id is None:
                 raise ValueError('experiment_id must be provided if the full '
                     'path to the experiment data is not.')
-            if data_root is None:
-                data_root = settings.MWT_DATA_ROOT
             self.directory = pathlib.Path(data_root) / experiment_id
             self.experiment_id = experiment_id
 

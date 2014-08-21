@@ -11,8 +11,6 @@ import argparse
 
 import numpy as np
 
-os.environ.setdefault('MULTIWORM_SETTINGS', 'multiworm_settings')
-
 import multiworm
 import multiworm.analytics
 #import where
