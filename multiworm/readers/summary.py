@@ -66,6 +66,7 @@ def parse(path):
     digraph = nx.DiGraph()
 
     with path.open('r') as f:
+        prev_time = 0
         for line_num, line in enumerate(f, start=1):
             # store all blob locations and remove them from end of line.
             line = line.split()
@@ -118,11 +119,13 @@ def parse(path):
                 active_blobs.add(b)
 
             for b in lost_bids:
-                blobs_summary[b]['died'] = time
-                blobs_summary[b]['died_f'] = frame
+                blobs_summary[b]['died'] = prev_time
+                blobs_summary[b]['died_f'] = frame - 1
                 if b != 0:
-                    digraph.node[b]['died'] = frame
+                    digraph.node[b]['died'] = frame - 1
                 active_blobs.discard(b)
+
+            prev_time = time
 
         # wrap up blob ends with the time
         for bid in active_blobs:

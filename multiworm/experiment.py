@@ -104,7 +104,7 @@ class Experiment(object):
                         "({} out of {} found).".format(file_count, file_refs))
 
     def blobs_in_frame(self, frame):
-        return exists_in_frame(frame)(self.summary)['bid']
+        return exists_in_frame(frame)(self.summary).index
 
     def summary_data(self, bid):
         """
