@@ -11,6 +11,10 @@ from six.moves import (zip, filter, map, reduce, input, range)
 import collections
 
 import numpy as np
+import pandas as pd
+
+from .readers.blob import decode_outline
+from .util import lazyprop
 
 SERIES_FIELDS = [
     'frame',
@@ -24,11 +28,24 @@ SERIES_FIELDS = [
     'contour_start',
     'contour_encode_len',
     'contour_encoded',
-    'midline',
-    'contour_start',
-    'contour_encode_len',
-    'contour_encoded',
 ]
+
+class BlobDataFrame(pd.DataFrame):
+
+    CONTOUR_COLUMNS = ['contour_start', 'contour_encode_len', 'contour_encoded']
+
+    def decode_contour(self):
+        self['contour'] = self.apply(self._contour_decoder, axis=1)
+        self.drop(self.CONTOUR_COLUMNS, axis=1, inplace=True)
+
+    @classmethod
+    def _contour_decoder(cls, series):
+        start, length, enc = series[cls.CONTOUR_COLUMNS]
+        if not np.isfinite(length):
+            return None
+
+        return decode_outline(start, length, enc).tolist()
+
 
 class Blob(collections.Mapping):
     def __init__(self, experiment, blob_id, fields=None):
@@ -41,13 +58,8 @@ class Blob(collections.Mapping):
         self.empty = self._peeper()
         self.crop(fields)
 
-    def crop(self, fields):
-        if fields is None:
-            self.fields = SERIES_FIELDS[:]
-        else:
-            self.fields = fields
-
-        return self # chainable
+    def __repr__(self):
+        return '<Blob {} of Experiment {}>'.format(self.blob_id, self.experiment.experiment_id)
 
     def __len__(self):
         return len(self.fields)
@@ -73,6 +85,14 @@ class Blob(collections.Mapping):
         except LookupError:
             raise AttributeError("'Blob' object has no attribute '{}'".format(name))
 
+    def crop(self, fields):
+        if fields is None:
+            self.fields = SERIES_FIELDS[:]
+        else:
+            self.fields = fields
+
+        return self # chainable
+
     def _peeper(self):
         """
         Check if the blob really contains any data
@@ -93,3 +113,11 @@ class Blob(collections.Mapping):
             return True
 
         return False
+
+    @lazyprop
+    def df(self):
+        """
+        Loads the fields from a blob in the provided experiment and converts
+        to a dataframe.
+        """
+        return BlobDataFrame(dict(self.experiment[self.blob_id]))

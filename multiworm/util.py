@@ -9,7 +9,7 @@ from six.moves import (zip, filter, map, reduce, input, range)
 
 def multifilter(filters, iterable):
     """
-    Like the builtin filter(), but takes an iterable of functions for the 
+    Like the builtin filter(), but takes an iterable of functions for the
     first argument.
     """
     for f in filters:
@@ -18,7 +18,7 @@ def multifilter(filters, iterable):
 
 def multitransform(transforms, data):
     """
-    Transforms *data* by passing it through all functions in *transforms*, 
+    Transforms *data* by passing it through all functions in *transforms*,
     in order.
     """
     return reduce(lambda x, f: f(x), transforms, data)
@@ -42,7 +42,7 @@ def dtype(spec):
 
 def enumerate(sequence, start=0):
     """
-    A version of the built-in enumerate that doesn't hold item references, 
+    A version of the built-in enumerate that doesn't hold item references,
     permitting up to 2x lower memory use.
     """
     n = start
@@ -50,3 +50,13 @@ def enumerate(sequence, start=0):
     while True:
         yield n, six.next(sequence)
         n += 1
+
+def lazyprop(fn):
+    """http://stackoverflow.com/a/3013910/194586"""
+    attr_name = '_lazy_' + fn.__name__
+    @property
+    def _lazyprop(self):
+        if not hasattr(self, attr_name):
+            setattr(self, attr_name, fn(self))
+        return getattr(self, attr_name)
+    return _lazyprop
