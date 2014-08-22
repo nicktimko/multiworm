@@ -32,13 +32,13 @@ class Experiment(object):
     def __init__(self, fullpath=None, experiment_id=None, data_root=''):
         if fullpath:
             self.directory = pathlib.Path(fullpath)
-            self.experiment_id = self.directory.stem
+            self.id = self.directory.stem
         else:
             if experiment_id is None:
                 raise ValueError('experiment_id must be provided if the full '
                     'path to the experiment data is not.')
             self.directory = pathlib.Path(data_root) / experiment_id
-            self.experiment_id = experiment_id
+            self.id = experiment_id
 
         self._find_summary_file()
         self._find_blobs_files()
@@ -80,9 +80,9 @@ class Experiment(object):
                 experiment=self)
 
     def load_summary(self, graph=None):
-        notice = ('load_summary() is deprecated, summary file is '
+        notice = ('load_summary() does nothing, summary file is '
                   'automatically loaded on object initialization')
-        warnings.warn(notice, DeprecationWarning)
+        warnings.warn(notice, Warning)
 
     def _load_summary(self):
         """
@@ -151,3 +151,10 @@ class Experiment(object):
         if parser is None:
             parser = blob.parse
         return parser(self._blob_lines(bid))
+
+    @property
+    def experiment_id(self):
+        notice = ('experiment_id is deprecated, use the id attribute')
+        warnings.warn(notice, Warning)
+        return self.id
+

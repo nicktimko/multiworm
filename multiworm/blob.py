@@ -53,16 +53,16 @@ class BlobDataFrame(pd.DataFrame):
 class Blob(collections.Mapping):
     def __init__(self, experiment, blob_id, fields=None):
         self.experiment = experiment
-        self.blob_id = blob_id
+        self.id = blob_id
 
-        self.summary_data = self.experiment.summary_data(self.blob_id)
+        self.summary_data = self.experiment.summary_data(self.id)
         self.blob_data = None
 
         self.empty = self._peeper()
         self.crop(fields)
 
     def __repr__(self):
-        return '<Blob {} of Experiment {}>'.format(self.blob_id, self.experiment.experiment_id)
+        return '<Blob {} of Experiment {}>'.format(self.id, self.experiment.id)
 
     def __len__(self):
         return len(self.fields)
@@ -78,7 +78,7 @@ class Blob(collections.Mapping):
                 return []
 
             if self.blob_data is None:
-                self.blob_data = self.experiment.parse_blob(self.blob_id)
+                self.blob_data = self.experiment.parse_blob(self.id)
 
             return self.blob_data[key]
 
@@ -105,7 +105,7 @@ class Blob(collections.Mapping):
 
                                            -- Freddie Miles
         """
-        gen = self.experiment._blob_lines(self.blob_id)
+        gen = self.experiment._blob_lines(self.id)
 
         try:
             six.next(gen)
@@ -123,4 +123,10 @@ class Blob(collections.Mapping):
         Loads the fields from a blob in the provided experiment and converts
         to a dataframe.
         """
-        return BlobDataFrame(dict(self.experiment[self.blob_id]))
+        return BlobDataFrame(dict(self.experiment[self.id]))
+
+    @property
+    def blob_id(self):
+        notice = ('blob_id is deprecated, use the id attribute')
+        warnings.warn(notice, Warning)
+        return self.id
