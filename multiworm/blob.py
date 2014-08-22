@@ -35,13 +35,16 @@ class BlobDataFrame(pd.DataFrame):
     CONTOUR_COLUMNS = ['contour_start', 'contour_encode_len', 'contour_encoded']
 
     def decode_contour(self):
+        if 'contour' in self:
+            # already created; no-op.
+            return
         self['contour'] = self.apply(self._contour_decoder, axis=1)
         self.drop(self.CONTOUR_COLUMNS, axis=1, inplace=True)
 
     @classmethod
     def _contour_decoder(cls, series):
         start, length, enc = series[cls.CONTOUR_COLUMNS]
-        if not np.isfinite(length):
+        if not length or not np.isfinite(length):
             return None
 
         return decode_outline(start, length, enc).tolist()
