@@ -148,6 +148,11 @@ class Experiment(object):
         object
             The output from `parser`.
         """
+
+        notice = ('parse_blob is slated for removal, index the experiment to '
+                  'get a Blob object')
+        warnings.warn(notice, Warning)
+
         if parser is None:
             parser = blob.parse
         return parser(self._blob_lines(bid))

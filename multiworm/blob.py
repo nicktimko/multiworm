@@ -89,9 +89,7 @@ class Blob(collections.Mapping):
             raise AttributeError("'Blob' object has no attribute '{}'".format(name))
 
     def to_dict(self):
-        if self.blob_data is None:
-            self.blob_data = self.experiment.parse_blob(self.id)
-        return self.blob_data
+        return dict(self)
 
     def crop(self, fields):
         if fields is None:
