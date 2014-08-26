@@ -126,7 +126,14 @@ class Experiment(object):
                 else:
                     return
 
-    def parse_blob(self, bid, parser=None):
+    def parse_blob(self, *args, **kwargs):
+        notice = ('parse_blob is now internal, index the experiment to '
+                  'get a Blob object')
+        warnings.warn(notice, Warning)
+
+        return self._parse_blob(*args, **kwargs)
+
+    def _parse_blob(self, bid, parser=None):
         """
         Parses the specified blob `parser` that
         accepts a generator returning all raw data lines from the blob.
@@ -148,18 +155,6 @@ class Experiment(object):
         object
             The output from `parser`.
         """
-
-        notice = ('parse_blob is slated for removal, index the experiment to '
-                  'get a Blob object')
-        warnings.warn(notice, Warning)
-
         if parser is None:
             parser = blob.parse
         return parser(self._blob_lines(bid))
-
-    @property
-    def experiment_id(self):
-        notice = ('experiment_id is deprecated, use the id attribute')
-        warnings.warn(notice, Warning)
-        return self.id
-

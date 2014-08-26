@@ -8,7 +8,7 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
-class MWTDataError(Exception):
+class MWTDataError(IOError):
     """
     Generic error to signal a problem with the MWT output data files.
     """

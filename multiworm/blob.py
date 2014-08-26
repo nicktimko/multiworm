@@ -58,7 +58,6 @@ class Blob(collections.Mapping):
         self.summary_data = self.experiment.summary_data(self.id)
         self.blob_data = None
 
-        self.empty = self._peeper()
         self.crop(fields)
 
     def __repr__(self):
@@ -78,7 +77,7 @@ class Blob(collections.Mapping):
                 return []
 
             if self.blob_data is None:
-                self.blob_data = self.experiment.parse_blob(self.id)
+                self.blob_data = self.experiment._parse_blob(self.id)
 
             return self.blob_data[key]
 
@@ -88,9 +87,6 @@ class Blob(collections.Mapping):
         except LookupError:
             raise AttributeError("'Blob' object has no attribute '{}'".format(name))
 
-    def to_dict(self):
-        return dict(self)
-
     def crop(self, fields):
         if fields is None:
             self.fields = SERIES_FIELDS[:]
@@ -99,7 +95,8 @@ class Blob(collections.Mapping):
 
         return self # chainable
 
-    def _peeper(self):
+    @lazyprop
+    def empty(self):
         """
         Check if the blob really contains any data
 
@@ -126,10 +123,6 @@ class Blob(collections.Mapping):
         Loads the fields from a blob in the provided experiment and converts
         to a dataframe.
         """
+        if self.empty:
+            return None
         return BlobDataFrame(dict(self.experiment[self.id]))
-
-    @property
-    def blob_id(self):
-        notice = ('blob_id is deprecated, use the id attribute')
-        warnings.warn(notice, Warning)
-        return self.id
