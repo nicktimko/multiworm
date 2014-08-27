@@ -7,6 +7,8 @@ from __future__ import (
 import six
 from six.moves import (zip, filter, map, reduce, input, range)
 
+LAZY_PREFIX = '_lazy_'
+
 def multifilter(filters, iterable):
     """
     Like the builtin filter(), but takes an iterable of functions for the
@@ -53,7 +55,7 @@ def enumerate(sequence, start=0):
 
 def lazyprop(fn):
     """http://stackoverflow.com/a/3013910/194586"""
-    attr_name = '_lazy_' + fn.__name__
+    attr_name = LAZY_PREFIX + fn.__name__
     @property
     def _lazyprop(self):
         if not hasattr(self, attr_name):

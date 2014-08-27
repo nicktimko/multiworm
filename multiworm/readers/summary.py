@@ -18,15 +18,7 @@ import networkx as nx
 from ..core import MWTSummaryError
 from ..util import alternate, dtype
 
-SUMMARY_FIELDS = dtype([
-        ('bid', 'int32'),
-        ('file_no', 'int16'),
-        ('offset', 'int32'),
-        ('born', 'float64'),
-        ('born_f', 'int32'),
-        ('died', 'float64'),
-        ('died_f', 'int32'),
-    ])
+NO_DATA = -1 # something that could never exist
 
 def find(directory):
     try:
@@ -147,6 +139,13 @@ def parse(path):
         if len(term_nan) != 0:
             df.drop(df.index[term_nan])
             digraph.remove_nodes_from(term_nan)
+
+    # int-ify columns to avoid inadvertently passing floats as indicies
+    # ** can't convert NaNs to int, fill with a sentinel (only will happen
+    #    to the fn/offset columns, the empty born/died rows were removed
+    #    above)
+    int_cols = ['file_no', 'offset', 'born_f', 'died_f']
+    df[int_cols] = df[int_cols].fillna(NO_DATA).astype(int)
 
     # pretty it up (for debugging, pointless otherwise)
     #df = df[['born_t', 'died_t', 'born_f', 'died_f', 'file_no', 'offset']]

@@ -14,7 +14,8 @@ import numpy as np
 import pandas as pd
 
 from .readers.blob import decode_outline
-from .util import lazyprop
+from .readers.summary import NO_DATA
+from .util import lazyprop, LAZY_PREFIX
 
 SERIES_FIELDS = [
     'frame',
@@ -57,6 +58,9 @@ class Blob(collections.Mapping):
 
         self.summary_data = self.experiment.summary_data(self.id)
         self.blob_data = None
+
+        if self.summary_data['file_no'] == NO_DATA:
+            setattr(self, LAZY_PREFIX + 'empty', True)
 
         self.crop(fields)
 
@@ -112,7 +116,8 @@ class Blob(collections.Mapping):
         except (StopIteration, ValueError):
             # - StopIteration raised on a zero-line blob
             # - ValueError raised on a blob that isn't even denoted anywhere
-            #       in the blobs files (NaN in the summary data)
+            #       in the blobs files (readers.summary.NO_DATA in the
+            #       summary data)
             return True
 
         return False
