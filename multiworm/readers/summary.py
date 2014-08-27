@@ -107,6 +107,7 @@ def parse(path):
                 dd[b]['born_t'] = time
                 dd[b]['born_f'] = frame
                 if b != 0:
+                    digraph.node[b]['born_t'] = time
                     digraph.node[b]['born_f'] = frame
                 active_blobs.add(b)
 
@@ -114,6 +115,7 @@ def parse(path):
                 dd[b]['died_t'] = prev_time
                 dd[b]['died_f'] = frame - 1
                 if b != 0:
+                    digraph.node[b]['died_t'] = prev_time
                     digraph.node[b]['died_f'] = frame - 1
                 active_blobs.discard(b)
 
@@ -124,6 +126,7 @@ def parse(path):
             dd[bid]['died_t'] = time
             dd[bid]['died_f'] = frame
             if bid != 0:
+                digraph.node[bid]['died_t'] = time
                 digraph.node[bid]['died_f'] = frame
 
     del dd[0] # drop fake blob
