@@ -50,16 +50,16 @@ def parse(path):
         * `bid`: ID
         * `file_no`: \*.blob file number
         * `offset`: Blob byte offset within file
-        * `born`: Time found
+        * `born_t`: Time found
         * `born_f`: Frame found
-        * `died`: Time lost
+        * `died_t`: Time lost
         * `died_f`: Frame lost
 
       2. a list of "wall-clock" times corresponding to frame times
 
       3. a networkx.DiGraph of fission and fusion events
     """
-    blobs_summary = defaultdict(dict, {})
+    dd = defaultdict(dict, {}) # 'data dict', later turned into a dataframe
     section_delims = {'%': 'events', '%%': 'lost_and_found', '%%%': 'offsets'}
     active_blobs = set()
     frame_times = []
@@ -99,8 +99,8 @@ def parse(path):
 
             for b, l in zip(*alternate(data['offsets'])):
                 b = int(b)
-                (blobs_summary[b]['file_no'],
-                 blobs_summary[b]['offset']) = (int(x) for x in l.split('.'))
+                (dd[b]['file_no'],
+                 dd[b]['offset']) = (int(x) for x in l.split('.'))
 
             # store all blob start and end times and remove them from end of line.
             lost_bids, found_bids = alternate([int(i) for i in data['lost_and_found']])
@@ -112,58 +112,50 @@ def parse(path):
                     digraph.add_edge(parent, child)
 
             for b in found_bids:
-                blobs_summary[b]['born'] = time
-                blobs_summary[b]['born_f'] = frame
+                dd[b]['born_t'] = time
+                dd[b]['born_f'] = frame
                 if b != 0:
-                    digraph.node[b]['born'] = frame
+                    digraph.node[b]['born_f'] = frame
                 active_blobs.add(b)
 
             for b in lost_bids:
-                blobs_summary[b]['died'] = prev_time
-                blobs_summary[b]['died_f'] = frame - 1
+                dd[b]['died_t'] = prev_time
+                dd[b]['died_f'] = frame - 1
                 if b != 0:
-                    digraph.node[b]['died'] = frame - 1
+                    digraph.node[b]['died_f'] = frame - 1
                 active_blobs.discard(b)
 
             prev_time = time
 
         # wrap up blob ends with the time
         for bid in active_blobs:
-            blobs_summary[bid]['died'] = time
-            blobs_summary[bid]['died_f'] = frame
+            dd[bid]['died_t'] = time
+            dd[bid]['died_f'] = frame
             if bid != 0:
-                digraph.node[bid]['died'] = frame
+                digraph.node[bid]['died_f'] = frame
 
-    # Remove blobs with no data
-    # blobs_summary = dict(filter(
-    #         lambda it: 'location' in it[1], six.iteritems(blobs_summary)
-    #     ))
+    del dd[0] # drop fake blob
 
-    del blobs_summary[0] # fake blob
-
-    blobs_summary_df = pd.DataFrame.from_dict(blobs_summary, orient='index')
-
-    # try to int-ify columns...doesn't work that well because of NA's :(
-    #int_cols = ['file_no', 'offset', 'born_f', 'died_f']
-    #blobs_summary_df[int_cols] = blobs_summary_df[int_cols].astype(int)
+    df = pd.DataFrame.from_dict(dd, orient='index')
 
     # MWT bug fixing: sometimes blobs near the start don't actually have a
     # start time.  We're just going to drop them from analysis (they have
     # not been emperically shown to have any data associated with them).
-    born_nan = blobs_summary_df[~np.isfinite(blobs_summary_df['born'])].index
-    died_nan = blobs_summary_df[~np.isfinite(blobs_summary_df['died'])].index
+    born_nan = df[~np.isfinite(df['born_f'])].index
+    died_nan = df[~np.isfinite(df['died_f'])].index
     for term_nan in [born_nan, died_nan]:
         if len(term_nan) != 0:
-            blobs_summary_df.drop(blobs_summary_df.index[term_nan])
+            df.drop(df.index[term_nan])
             digraph.remove_nodes_from(term_nan)
 
     # pretty it up (for debugging, pointless otherwise)
-    #blobs_summary_df = blobs_summary_df[['born', 'died', 'born_f', 'died_f', 'file_no', 'offset']]
+    #df = df[['born_t', 'died_t', 'born_f', 'died_f', 'file_no', 'offset']]
 
+    # local graph should be immutable
     digraph = nx.freeze(digraph)
 
     def unlock():
         return nx.DiGraph(digraph)
     digraph.copy = unlock
 
-    return blobs_summary_df, frame_times, digraph
+    return df, frame_times, digraph

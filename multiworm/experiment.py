@@ -79,11 +79,6 @@ class Experiment(object):
                 image.find(self.directory, self.basename),
                 experiment=self)
 
-    def load_summary(self, graph=None):
-        notice = ('load_summary() does nothing, summary file is '
-                  'automatically loaded on object initialization')
-        warnings.warn(notice, Warning)
-
     def _load_summary(self):
         """
         Loads the location of blobs in the \*.blobs data files.
@@ -114,10 +109,10 @@ class Experiment(object):
         """
         Generator that yields all lines of data for blob id `bid`.
         """
-        file_no, offset = self.summary[['file_no', 'offset']].loc[bid].astype(int)
+        file_no, offset = self.summary[['file_no', 'offset']].loc[bid]
         with self.blobs_files[file_no].open('r') as f:
             f.seek(offset)
-            if six.next(f).rstrip() != '% {0}'.format(bid):
+            if next(f).rstrip() != '% {}'.format(bid):
                 raise MWTDataError("File number/offset ({}/{}) for blob {} "
                         "was incorrect.".format(file_no, offset, bid))
             for line in f:

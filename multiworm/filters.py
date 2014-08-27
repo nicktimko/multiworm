@@ -13,17 +13,17 @@ import math
 
 def summary_lifetime_minimum(threshold):
     """
-    Returns a function that filters summary blob data by a minimum time, 
+    Returns a function that filters summary blob data by a minimum time,
     *threshold*.
     """
     def f(summary_data):
-        lifetimes = summary_data['died'] - summary_data['born']
+        lifetimes = summary_data['died_t'] - summary_data['born_t']
         return summary_data[lifetimes >= threshold]
     return f
 
 def exists_in_frame(frame):
     """
-    Returns a function that filters summary blob data by requiring it to 
+    Returns a function that filters summary blob data by requiring it to
     exist on a specific *frame*.
     """
     def f(summary_data):
@@ -34,12 +34,12 @@ def exists_in_frame(frame):
 
 def exists_at_time(time):
     """
-    Returns a function that filters summary blob data by requiring it to 
+    Returns a function that filters summary blob data by requiring it to
     exist at a specific *time*.
     """
     def f(summary_data):
-        born_before = summary_data['born'] <= time
-        died_after = summary_data['died'] >= time
+        born_before = summary_data['born_t'] <= time
+        died_after = summary_data['died_t'] >= time
         return summary_data[born_before & died_after]
     return f
 
@@ -57,8 +57,8 @@ def _midline_length(points):
 
 def relative_move_minimum(threshold):
     """
-    Returns a function that filters parsed blob data by a minimum amount 
-    of movement.  The sum of the blob's centroid bounding box must exceed 
+    Returns a function that filters parsed blob data by a minimum amount
+    of movement.  The sum of the blob's centroid bounding box must exceed
     *threshold* times the average length of the midline.
     """
     def f(blob):

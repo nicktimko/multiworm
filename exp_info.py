@@ -21,7 +21,7 @@ WALDO_CODE = os.path.join(WALDO_LOC, 'code')
 WALDO_DATA = os.path.join(WALDO_LOC, 'data', 'worms')
 
 def longest_10(experiment, ten=10):
-    blob_lifespan = [(blob['bid'], blob['died'] - blob['born']) for blob in experiment.summary]
+    blob_lifespan = [(blob['bid'], blob['died_t'] - blob['born_t']) for blob in experiment.summary]
     blob_lifespan = sorted(blob_lifespan, key=lambda x: x[1], reverse=True)
     return blob_lifespan[:ten]
 

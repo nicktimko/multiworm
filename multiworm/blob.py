@@ -108,7 +108,7 @@ class Blob(collections.Mapping):
         gen = self.experiment._blob_lines(self.id)
 
         try:
-            six.next(gen)
+            next(gen)
         except (StopIteration, ValueError):
             # - StopIteration raised on a zero-line blob
             # - ValueError raised on a blob that isn't even denoted anywhere
