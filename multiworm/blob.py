@@ -92,12 +92,23 @@ class Blob(collections.Mapping):
             raise AttributeError("'Blob' object has no attribute '{}'".format(name))
 
     def crop(self, fields):
+        """
+        Limit the keys that are iterated through. Perhaps useful if you
+        don't want to load as much stuff into a DataFrame.
+        """
         if fields is None:
             self.fields = SERIES_FIELDS[:]
         else:
             self.fields = fields
 
         return self # chainable
+
+    def raw_lines(self):
+        """
+        Yield raw lines from the blobs files
+        """
+        for line in self.experiment._blob_lines(self.id):
+            yield line
 
     @lazyprop
     def empty(self):

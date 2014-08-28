@@ -10,6 +10,7 @@ from six.moves import (zip, filter, map, reduce, input, range)
 
 import pathlib
 import re
+import warnings
 
 import numpy as np
 
@@ -33,16 +34,28 @@ class ImageFileOrganizer(dict):
         del kwargs['experiment']
         super(ImageFileOrganizer, self).__init__(*args, **kwargs)
 
-    def nearest(self, frame=None, time=None):
+    def nearest(self, **kwargs):
+        """
+        Given keyword argument 'frame' or 'time', return the path of the
+        nearest image and the time it was taken (as a tuple)
+        """
+        frame = kwargs.get('frame', None)
+        time = kwargs.get('time', None)
+
+    #def nearest(self, *, frame=None, time=None): # in Py3 we could do this
         if frame is None and time is None:
             raise ValueError("either the 'time' or 'frame' keyword argument "
                              "must be provided")
         if time is None:
-            time = self.experiment.frame_times[frame - 1]
+            # warn against rogue floats
+            if int(frame) != frame:
+                warnings.warn('non-integer passed to nearest() as a frame', Warning)
+
+            time = self.experiment.frame_times[int(frame) - 1]
 
         image_time = find_nearest(list(six.iterkeys(self)), time)
 
-        return time, self[image_time]
+        return self[image_time], image_time
 
 
 def find(directory, basename):
