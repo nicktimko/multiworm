@@ -57,6 +57,15 @@ class ImageFileOrganizer(dict):
 
         return self[image_time], image_time
 
+    def __getitem__(self, key):
+        """
+        *key* is augmented to support slicing, returning images in a given
+        **time** (not frame) range.
+        """
+        if not isinstance(key, slice):
+            return super(ImageFileOrganizer, self).__getitem__(key)
+
+        return sorted(self[t] for t in six.iterkeys(self) if key.start <= t <= key.stop)
 
 def find(directory, basename):
     """
