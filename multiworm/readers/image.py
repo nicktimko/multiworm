@@ -34,6 +34,9 @@ class ImageFileOrganizer(dict):
         del kwargs['experiment']
         super(ImageFileOrganizer, self).__init__(*args, **kwargs)
 
+    def _frame_time(self, frame):
+        return self.experiment.frame_times[max(0, int(frame) - 1)]
+
     def nearest(self, **kwargs):
         """
         Given keyword argument 'frame' or 'time', return the path of the
@@ -51,21 +54,36 @@ class ImageFileOrganizer(dict):
             if int(frame) != frame:
                 warnings.warn('non-integer passed to nearest() as a frame', Warning)
 
-            time = self.experiment.frame_times[int(frame) - 1]
+            time = self._frame_time(frame)
 
         image_time = find_nearest(list(six.iterkeys(self)), time)
 
         return self[image_time], image_time
 
-    def __getitem__(self, key):
+    def spanning(self, **kwargs):
         """
-        *key* is augmented to support slicing, returning images in a given
-        **time** (not frame) range.
-        """
-        if not isinstance(key, slice):
-            return super(ImageFileOrganizer, self).__getitem__(key)
+        spanning(times=[t0, tN])
+        spanning(frames=[f0, fN])
 
-        return sorted(self[t] for t in six.iterkeys(self) if key.start <= t <= key.stop)
+        Returns a list of filenames encompassing the desired time or frame
+        range. Guaranteed to return at least one filename.
+        """
+        if 'frames' in kwargs:
+            times = (self._frame_time(f) for f in kwargs['frames'])
+        else:
+            times = kwargs['times']
+
+        keytimes = sorted(self)
+
+        try:
+            istart, iend = (find_nearest_index(keytimes, t) for t in times)
+        except ValueError:
+            raise ValueError('Only two frames or times values are accepted')
+
+        return [self[keytimes[i]] for i in range(istart, iend + 1)]
+
+        #find_nearest_index()
+        #return sorted(self[t] for t in six.iterkeys(self) if key.start <= t <= key.stop)
 
 def find(directory, basename):
     """
