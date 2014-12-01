@@ -112,8 +112,12 @@ def parse(path):
                 active_blobs.add(b)
 
             for b in lost_bids:
-                dd[b]['died_t'] = prev_time
-                dd[b]['died_f'] = frame - 1
+                try:
+                    dd[b]['died_t'] = prev_time
+                    dd[b]['died_f'] = frame - 1
+                except KeyError:
+                    print('\t\t- blob with no record:{bid}'.format(bid=b))
+                    continue
                 if b != 0:
                     digraph.node[b]['died_t'] = prev_time
                     digraph.node[b]['died_f'] = frame - 1
