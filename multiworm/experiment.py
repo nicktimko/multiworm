@@ -52,14 +52,18 @@ class Experiment(object):
         self._find_images()
 
         self.summary = None
-        self.blobs_parsed = 0
 
         self._progress(PROGRESS_SUMMARY_LOAD_START)
         self._load_summary()
+
+        self.n_blobs = len(self.summary)
         self._progress(1)
 
     def __iter__(self):
         return iter(self.summary.index)
+
+    def __len__(self):
+        return self.n_blobs
 
     def blobs(self):
         for blob_id in self:
