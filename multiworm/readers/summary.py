@@ -101,7 +101,10 @@ def parse(path):
                 if parent == 0:
                     digraph.add_node(child)
                 elif child != 0:
-                    digraph.add_edge(parent, child)
+                    if frame == 1 and parent != 0: # no parents should be saved on first frame.
+                        digraph.add_node(child)
+                    else:
+                        digraph.add_edge(parent, child)
 
             for b in found_bids:
                 dd[b]['born_t'] = time
@@ -112,12 +115,12 @@ def parse(path):
                 active_blobs.add(b)
 
             for b in lost_bids:
-                try:
-                    dd[b]['died_t'] = prev_time
-                    dd[b]['died_f'] = frame - 1
-                except KeyError:
-                    print('\t\t- blob with no record:{bid}'.format(bid=b))
-                    continue
+                if frame == 1:
+                    continue # no blobs lost on the first frame have any record.
+
+                dd[b]['died_t'] = prev_time
+                dd[b]['died_f'] = frame - 1
+
                 if b != 0:
                     digraph.node[b]['died_t'] = prev_time
                     digraph.node[b]['died_f'] = frame - 1
