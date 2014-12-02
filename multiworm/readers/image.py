@@ -62,16 +62,16 @@ class ImageFileOrganizer(dict):
 
     def spanning(self, **kwargs):
         """
-        spanning(times=[t0, tN])
-        spanning(frames=[f0, fN])
+        spanning(time=[t0, tN])
+        spanning(frame=[f0, fN])
 
         Returns a list of filenames encompassing the desired time or frame
         range. Guaranteed to return at least one filename.
         """
-        if 'frames' in kwargs:
-            times = (self._frame_time(f) for f in kwargs['frames'])
+        if 'frame' in kwargs:
+            times = (self._frame_time(f) for f in kwargs['frame'])
         else:
-            times = kwargs['times']
+            times = kwargs['time']
 
         keytimes = sorted(self)
 

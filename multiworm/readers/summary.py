@@ -34,7 +34,9 @@ def find(directory):
 
     return summary, basename
 
-def parse(path):
+CALLBACK_DF_CHEAT = 0.8
+
+def parse(path, callback=None):
     """
     Parses the summary file at *path*, and returns:
 
@@ -50,6 +52,8 @@ def parse(path):
       2. a list of "wall-clock" times corresponding to frame times
 
       3. a networkx.DiGraph of fission and fusion events
+
+    *callback* returns last **time** processed.
     """
     dd = defaultdict(dict, {}) # 'data dict', later turned into a dataframe
     section_delims = {'%': 'events', '%%': 'lost_and_found', '%%%': 'offsets'}
@@ -128,6 +132,9 @@ def parse(path):
 
             prev_time = time
 
+            if callback:
+                callback(time * CALLBACK_DF_CHEAT) # cheat this; making DF takes a while...
+
         # wrap up blob ends with the time
         for bid in active_blobs:
             dd[bid]['died_t'] = time
@@ -139,6 +146,8 @@ def parse(path):
     del dd[0] # drop fake blob
 
     df = pd.DataFrame.from_dict(dd, orient='index')
+    if callback:
+        callback(time) # "complete"
 
     # MWT bug fixing: sometimes blobs near the start don't actually have a
     # start time.  We're just going to drop them from analysis (they have
