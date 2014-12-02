@@ -17,6 +17,10 @@ from .util import multifilter, multitransform
 from .filters import exists_in_frame
 from .blob import Blob
 
+PROGRESS_SUMMARY_LOAD_START = 0.1
+PROGRESS_EXP_DURATION_PAD = 1.05
+PROGRESS_SUMMARY_LOAD_END = 1
+
 class Experiment(object):
     """
     Provides interfaces for Multi-Worm Tracker experiment data.
@@ -29,7 +33,10 @@ class Experiment(object):
     :func:`add_filter`.  Then call :func:`load_summary` to index the location
     of all possible good blobs.
     """
-    def __init__(self, fullpath=None, experiment_id=None, data_root=''):
+    def __init__(self, fullpath=None, experiment_id=None, data_root='', callback=None):
+        self._pcb = callback
+        self._progress(0)
+
         if fullpath:
             self.directory = pathlib.Path(fullpath)
             self.id = self.directory.stem
@@ -45,9 +52,11 @@ class Experiment(object):
         self._find_images()
 
         self.summary = None
-
         self.blobs_parsed = 0
+
+        self._progress(PROGRESS_SUMMARY_LOAD_START)
         self._load_summary()
+        self._progress(1)
 
     def __iter__(self):
         return iter(self.summary.index)
@@ -86,7 +95,19 @@ class Experiment(object):
         Must be called prior to attempting to access any blob with
         :func:`good_blobs`, :func:`parse_blob`, or the like.
         """
-        self.summary, self.frame_times, self.graph = summary.parse(self.summary_file)
+        cb = None
+        if self._pcb:
+            # estimate experiment time
+            total_time = (self.image_files.nearest(time=1e10)[1] *
+                    PROGRESS_EXP_DURATION_PAD)
+            def cb(p):
+                p = (min(p / total_time, 1) *
+                        (PROGRESS_SUMMARY_LOAD_END -
+                            PROGRESS_SUMMARY_LOAD_START) +
+                        PROGRESS_SUMMARY_LOAD_START)
+                self._progress(p)
+
+        self.summary, self.frame_times, self.graph = summary.parse(self.summary_file, cb)
 
         # check size is non-zero to not error out on empty data sets
         if not self.summary.empty:
@@ -153,3 +174,7 @@ class Experiment(object):
         if parser is None:
             parser = blob.parse
         return parser(self._blob_lines(bid))
+
+    def _progress(self, p):
+        if self._pcb:
+            self._pcb(p)
