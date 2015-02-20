@@ -39,7 +39,10 @@ class Experiment(object):
 
         if fullpath:
             self.directory = pathlib.Path(fullpath)
-            self.id = self.directory.stem
+            if experiment_id is None:
+                self.id = self.directory.stem
+            else:
+                self.id = experiment_id
         else:
             if experiment_id is None:
                 raise ValueError('experiment_id must be provided if the full '
