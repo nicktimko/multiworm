@@ -108,8 +108,11 @@ class Experiment(object):
             total_time = (self.image_files.nearest(time=1e10)[1] *
                     PROGRESS_EXP_DURATION_PAD)
             def cb(p):
-                p = (min(p / total_time, 1) *
-                        (PROGRESS_SUMMARY_LOAD_END -
+                if total_time > 0:
+                    a = min(p / total_time, 1)
+                else:
+                    a = 1
+                p = (a * (PROGRESS_SUMMARY_LOAD_END -
                             PROGRESS_SUMMARY_LOAD_START) +
                         PROGRESS_SUMMARY_LOAD_START)
                 self._progress(p)

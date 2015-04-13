@@ -285,6 +285,8 @@ def parse_np(path, callback=None):
 
             for b, l in zip(*alternate(blob_events['offsets'])):
                 b = int(b)
+                if b > aaa[-1,0]:
+                    aaa = grow(aaa)
                 #dfp[b, ('file_no', 'offset')] = [int(x) for x in l.split('.')]
                 aaa[b, fields.file_no], aaa[b, fields.offset] = (int(x) for x in l.split('.'))
 
