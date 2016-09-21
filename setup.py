@@ -18,6 +18,10 @@ setup(
     url='https://github.org/nicktimko/multiworm',
 
     long_description=open('README.rst', 'r').read(),
+    keywords=[
+        'c. elegans', 'caenorhabditis elegans', 'caenorhabditis', 'elegans',
+        'worm', 'tracking', 'biology', 'amaral',
+    ],
 
     classifiers=[
         'Development Status :: 5 - Production/Stable',
