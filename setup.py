@@ -5,13 +5,13 @@ import setuptools
 if not sys.hexversion >= 0x02060000:
     raise RuntimeError("Python 2.6 or newer is required")
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='multiworm',
-    version='0.1.0',
+    version='0.1.1',
     description='Python interface for Multi-Worm Tracker data',
-    packages=['multiworm'],
+    packages=[p for p in find_packages() if p.startswith('multiworm')],
 
     author='Nick Timkovich',
     author_email='npt@u.northwestern.edu',
