@@ -1,0 +1,32 @@
+## Ephermeral files
+~$
+*.py[co]
+__pycache__/
+*.profile
+*.out
+*.output
+
+# profiling output files
+profiles/
+
+# generated test data
+test/*data/
+tests/*data/
+
+*.7z
+*.tar.*
+
+## Builds/Packaging
+*.egg-info/
+dist/
+_build/
+build/
+
+## Local
+data/
+venv*/
+.python-version
+
+# Hg Legacy
+/.hg/
+/.hg*

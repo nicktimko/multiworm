@@ -7,26 +7,36 @@ if not sys.hexversion >= 0x02060000:
 
 from setuptools import setup
 
-setup(name='multiworm',
-    version='0.0.1',
+setup(
+    name='multiworm',
+    version='0.1.0',
     description='Python interface for Multi-Worm Tracker data',
+    packages=['multiworm'],
+
     author='Nick Timkovich',
     author_email='npt@u.northwestern.edu',
-    url='https://bitbucket.org/nick_timkovich/multiworm',
-    packages=setuptools.find_packages(),
-    #scripts=['arpeggio'],
-    classifiers=[
-        'Topic :: Scientific/Engineering :: Bio-Informatics',
-        'Intended Audience :: Science/Research',
-    ],
-    install_requires=[
-        'six>=1.5.2',
-        'numpy>=1.8.0',
-        'scipy>=0.11.0',
-        #'matplotlib>=1.2.1',
+    url='https://github.org/nicktimko/multiworm',
 
+    long_description=open('README.rst', 'r').read(),
+
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: MIT License',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
-    # test_requires=[
-    #     'nose>=1.3.0',
-    # ],
-    )
+
+    install_requires=[
+        'networkx>=1.8.1',
+        'numpy>=1.8.1',
+        'pandas>=0.14.0',
+        'pathlib>=1.0.1',
+        # 'scipy>=0.11.0',
+        'six>=1.7.2',
+    ],
+
+    test_requires=[
+        'nose>=1.3.0',
+        'scipy>=0.11.0',
+    ],
+)
