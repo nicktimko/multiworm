@@ -28,6 +28,40 @@ Every time we test a new method or generate a plot, we need to read the data.
   * requests
 * PEP-8 does not beautiful code make; *it is almost orthogonal*
 
+### More examples
+
+Numpy can make things more beautiful:
+
+    a = list(range(10))
+    b = list(range(10))
+    c = [aa + bb for aa, bb in zip(a, b)]
+
+    a = np.arange(10)
+    b = np.arange(10)
+    c = a + b
+
+Or ugly:
+
+```
+x = [[1] * 3, [1] * 2]
+y = [[0] * 2, [0] * 5]
+
+z = [sum(zz, []) for zz in zip(x, y)]
+z
+# [[1, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 0]]
+
+x = np.array([np.ones(3), np.ones(2)])
+y = np.array([np.zeros(2), np.zeros(5)])
+
+z = np.empty(len(x), dtype=object)
+for i in range(len(x)):
+    z[i] = np.concatenate([x[i], y[i]])
+
+z
+# array([array([ 1.,  1.,  1.,  0.,  0.]),
+#        array([ 1.,  1.,  0.,  0.,  0.,  0.,  0.])], dtype=object)
+```
+
 ### Fantastic code is the triple-crown
 * beautiful (good external design)
 * idiomatic (good internal design)
@@ -52,11 +86,33 @@ MongoDB
   * Loading a single experiment (ETL) took hours
   * Change in schema required discarding all data
   * Impossible to store all the data efficiently
+    * ~10x expansion of data size, turns "lots" of data into "too much"
 
 HDF5
 * Why it's appealing
   * Compact on-disk storage
-  * Constant-time (O(1)) indexing into data
+  * Constant-time (O(1)) indexing into (some) data
 
 * Why it didn't work
-  * ETL every time
+  * ETL
+  * Jagged arrays in Numpy are clunky
+
+### Design Plan
+
+1. We keep accessing the raw data files and reading them into some other storage method convenient for analysis.
+2. We keep changing that storage method
+3. Create a layer between storage and analysis that exposes something consistent to allow future changes to storage layer without requiring re-write of analysis code. (Design pattern!)
+
+### Result: Creation of Multiworm
+
+The interface was designed to make common tasks easy and convenient.
+
+* Get a single blob by ID
+* Get all the blobs
+* Get where the blob started/ended
+* Get all blobs that existed at a specific time
+* Get the closest image in time
+
+### Additional Problem
+
+Loading *all* the data is too much to handle, and usually not needed. Using lazy proxies (another design pattern) can help.
