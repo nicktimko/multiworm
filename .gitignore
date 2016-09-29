@@ -30,3 +30,7 @@ venv*/
 # Hg Legacy
 /.hg/
 /.hg*
+
+# Scratch
+Untitled*.ipynb
+ipynb_checkpoints/

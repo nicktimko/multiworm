@@ -46,29 +46,9 @@ def install(ctx):
         ctx.run('pip install dist/multiworm-*.tar.gz')
 
 
-# def covpth():
-#     from distutils.sysconfig import get_python_lib
-#     return os.path.join(get_python_lib(), 'covhook.pth')
-#
-#
-# @task
-# def hook_coverage(ctx):
-#     with open(covpth(), 'w') as f:
-#         f.write('import coverage; coverage.process_startup()\n')
-#
-#
-# @task
-# def unhook_coverage(ctx):
-#     try:
-#         os.remove(covpth())
-#     except OSError as e:
-#         if e.errno != errno.ENOENT:
-#             raise
-
-
 @task
 def test(ctx, coverage=False):
-    cmd = 'nosetests test'
+    cmd = 'nosetests tests'
     # if coverage:
         # cmd += ' --with-coverage --cover-erase --cover-package=autolycus'
     ctx.run(cmd)
