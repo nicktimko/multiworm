@@ -122,7 +122,7 @@ class Experiment(object):
                         PROGRESS_SUMMARY_LOAD_START)
                 self._progress(p)
 
-        self.summary, self.frame_times, self.graph = summary.parse_np(self.summary_file, cb)
+        self.summary, self.frame_times, self.graph = summary.parse(self.summary_file, cb)
 
         # check size is non-zero to not error out on empty data sets
         if not self.summary.empty:
