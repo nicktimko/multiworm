@@ -2,8 +2,8 @@
 import sys
 import setuptools
 
-if not sys.hexversion >= 0x02060000:
-    raise RuntimeError("Python 2.6 or newer is required")
+if not sys.hexversion >= 0x02070000:
+    raise RuntimeError("Python 2.7 or newer is required")
 
 from setuptools import setup, find_packages
 
