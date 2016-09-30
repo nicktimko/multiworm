@@ -5,6 +5,7 @@ __pycache__/
 *.profile
 *.out
 *.output
+*_tmp
 
 # profiling output files
 profiles/
@@ -34,3 +35,7 @@ venv*/
 # Scratch
 Untitled*.ipynb
 ipynb_checkpoints/
+
+# Coverage
+.coverage
+coverage.xml

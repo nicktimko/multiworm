@@ -46,7 +46,7 @@ def install(ctx):
 
 @task
 def test(ctx, coverage=False):
-    cmd = 'nosetests test'
+    cmd = 'nosetests tests'
     if coverage:
         cmd += ' --with-coverage --cover-erase --cover-package=multiworm'
 

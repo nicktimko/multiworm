@@ -41,6 +41,7 @@ setup(
 
     test_requires=[
         'nose>=1.3.0',
+        'coverage>=2.0.5',
         # 'scipy>=0.11.0',
     ],
 )
