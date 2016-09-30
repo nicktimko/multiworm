@@ -46,10 +46,14 @@ def install(ctx):
 
 @task
 def test(ctx, coverage=False):
-    cmd = 'nosetests tests'
-    # if coverage:
-        # cmd += ' --with-coverage --cover-erase --cover-package=autolycus'
+    cmd = 'nosetests test'
+    if coverage:
+        cmd += ' --with-coverage --cover-erase --cover-package=multiworm'
+
     ctx.run(cmd)
+
+    if coverage:
+        ctx.run('coverage xml')
 
 
 @task
