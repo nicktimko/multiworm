@@ -50,6 +50,11 @@ class Experiment(object):
             self.directory = pathlib.Path(data_root) / experiment_id
             self.id = experiment_id
 
+        if not self.directory.exists():
+            if not self.directory.is_dir():
+                raise IOError("target ({}) isn't a directory".format(self.directory))
+            raise IOError("target path ({}) doesn't exist".format(self.directory))
+
         self._find_summary_file()
         self._find_blobs_files()
         self._find_images()

@@ -9,9 +9,6 @@ __pycache__/
 # profiling output files
 profiles/
 
-# generated test data
-test/*data/
-tests/*data/
 
 *.7z
 *.tar.*
@@ -26,6 +23,9 @@ build/
 data/
 venv*/
 .python-version
+
+# allow pre-generated test data
+!/tests/data/
 
 # Hg Legacy
 /.hg/
