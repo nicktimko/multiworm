@@ -3,9 +3,7 @@ from __future__ import print_function
 import os
 import errno
 import shutil
-import webbrowser
-import urlparse
-import urllib
+from six.moves import urllib
 
 from invoke import task
 
@@ -13,7 +11,7 @@ ROOT = os.path.abspath(os.path.dirname(__file__))
 
 def fileurl(path):
     path = os.path.abspath(path)
-    return urlparse.urljoin('file:', urllib.pathname2url(path))
+    return urllib.parse.urljoin('file:', urllib.request.pathname2url(path))
 
 
 @task
@@ -52,12 +50,6 @@ def test(ctx, coverage=False):
     # if coverage:
         # cmd += ' --with-coverage --cover-erase --cover-package=autolycus'
     ctx.run(cmd)
-
-
-# @task
-# def report(ctx):
-    # ctx.run('coverage html')
-    # webbrowser.open_new_tab(fileurl(os.path.join(ROOT, 'coverage_html_report', 'index.html')))
 
 
 @task

@@ -5,6 +5,6 @@ networkx
 numpy
 pandas
 pathlib
-scipy
+# scipy # travis doesn't like to install this
 twine
 wheel
