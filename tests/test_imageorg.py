@@ -4,6 +4,7 @@ from six.moves import zip, filter, map, reduce, input, range
 
 import pathlib
 import unittest
+import warnings
 
 import multiworm
 import multiworm.readers.image as mwimg
@@ -137,6 +138,26 @@ class TestImageOrganizer(unittest.TestCase):
     def test_nearest_frame_mid_down(self):
         self.assertSameEntry(self.ifo.nearest(frame=3), eix=0)
 
+    def test_nearest_frame_complains_float(self):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+
+            self.ifo.nearest(frame=2.5)
+
+            assert len(w) == 1
+            assert "non-integer" in str(w[-1].message)
+
+    def test_nearest_frame_no_complains_inty_float(self):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+
+            self.ifo.nearest(frame=2.0)
+
+            assert len(w) == 0
+
+    def test_nearest_no_kwargs(self):
+        self.assertRaisesRegexp(ValueError, 'either', self.ifo.nearest)
+
     def test_spanning_frame_at_least_1(self):
         assert len(self.ifo.spanning(frame=[0, 2])) == 1
         assert len(self.ifo.spanning(frame=[9, 10])) == 1
@@ -144,3 +165,11 @@ class TestImageOrganizer(unittest.TestCase):
     def test_spanning_time_at_least_1(self):
         assert len(self.ifo.spanning(time=[0.35, 1])) == 1
         assert len(self.ifo.spanning(time=[100, 2000])) == 1
+
+    def test_spanning_frame_errors_not_2(self):
+        self.assertRaisesRegexp(ValueError, 'two', self.ifo.spanning, frame=[0])
+        self.assertRaisesRegexp(ValueError, 'two', self.ifo.spanning, frame=[1, 2, 3])
+
+    def test_spanning_time_errors_not_2(self):
+        self.assertRaisesRegexp(ValueError, 'two', self.ifo.spanning, time=[0.1])
+        self.assertRaisesRegexp(ValueError, 'two', self.ifo.spanning, time=[0.11, 0.22, 0.33])
