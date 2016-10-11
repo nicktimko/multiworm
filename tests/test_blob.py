@@ -13,18 +13,17 @@ TEST_ROOT = pathlib.Path(__file__).parent.resolve()
 DATA_DIR = TEST_ROOT / 'data'
 SYNTH1 = DATA_DIR / 'synth1'
 
+SYNTH1_N_BLOBS = 12
+
 
 class TestBlobAccess(unittest.TestCase):
 
     def setUp(self):
-        ex = multiworm.Experiment(SYNTH1)
-        self.blob = ex[1]
+        self.ex = multiworm.Experiment(SYNTH1)
+        self.blob = self.ex[1]
 
     def test_blob_is_blob_object(self):
         self.assertIsInstance(self.blob, Blob)
-
-    # def test_blob_len(self):
-    #     self.assertEqual(, len(self.blob))
 
     def test_dataframe_access(self):
         df = self.blob.df
@@ -45,3 +44,28 @@ class TestBlobAccess(unittest.TestCase):
         after = set(df.columns)
 
         self.assertEqual(before, after)
+
+
+# class TestBlobAccessPartial(unittest.TestCase):
+#
+#     def setUp(self):
+#         self.ex = multiworm.Experiment(SYNTH1)
+#
+#     def test_partial(self):
+#         blob = self.ex[1]
+#         blob.crop([])
+
+
+class TestBlobProperties(unittest.TestCase):
+
+    def setUp(self):
+        self.ex = multiworm.Experiment(SYNTH1)
+
+    def test_blob_empty(self):
+        blob = self.ex[12]
+        self.assertTrue(blob.empty)
+
+    def test_blob_empty_df(self):
+        blob = self.ex[12]
+        df = blob.df
+        self.assertIs(df, None)

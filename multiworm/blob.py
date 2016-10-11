@@ -120,7 +120,7 @@ class Blob(collections.Mapping):
 
                                            -- Freddie Miles
         """
-        gen = self.experiment._blob_lines(self.id)
+        gen = self.raw_lines()
 
         try:
             next(gen)

@@ -51,9 +51,9 @@ class Experiment(object):
             self.id = experiment_id
 
         if not self.directory.exists():
-            if not self.directory.is_dir():
-                raise IOError("target ({}) isn't a directory".format(self.directory))
             raise IOError("target path ({}) doesn't exist".format(self.directory))
+        if not self.directory.is_dir():
+            raise IOError("target ({}) isn't a directory".format(self.directory))
 
         self._find_summary_file()
         self._find_blobs_files()
@@ -157,10 +157,10 @@ class Experiment(object):
                 else:
                     return
 
-    def parse_blob(self, *args, **kwargs):
+    def parse_blob(self, *args, **kwargs): # pragma: no cover
         notice = ('parse_blob is now internal, index the experiment to '
                   'get a Blob object')
-        warnings.warn(notice, Warning)
+        warnings.warn(notice, DeprecationWarning)
 
         return self._parse_blob(*args, **kwargs)
 
