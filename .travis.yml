@@ -19,7 +19,7 @@ matrix:
   - python: "nightly"
 
 before_install:
-  - pip install Cython
+  - pip install -U pip>=8.1.2 # allows manylinux1 wheels
   - pip install -r requirements.txt
   - invoke build
 
