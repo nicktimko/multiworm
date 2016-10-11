@@ -39,3 +39,4 @@ ipynb_checkpoints/
 # Coverage
 .coverage
 coverage.xml
+coverage_html_report/

@@ -10,15 +10,16 @@ import multiworm
 
 TEST_ROOT = pathlib.Path(__file__).parent.resolve()
 DATA_DIR = TEST_ROOT / 'data'
+SYNTH1 = DATA_DIR / 'synth1'
 
 
 class TestExperimentOpen(unittest.TestCase):
 
     def test_pathlib(self):
-        ex = multiworm.Experiment(DATA_DIR / 'synth1')
+        ex = multiworm.Experiment(SYNTH1)
 
     def test_strpath(self):
-        ex = multiworm.Experiment(str(DATA_DIR / 'synth1'))
+        ex = multiworm.Experiment(str(SYNTH1))
 
     def test_root_and_id(self):
         ex = multiworm.Experiment(
@@ -71,3 +72,24 @@ class TestMalformedData(unittest.TestCase):
             pass
         else:
             self.fail("Didn't raise error on malformed data with a frame 0")
+
+
+class TestReadingData(unittest.TestCase):
+
+    def setUp(self):
+        self.ex = multiworm.Experiment(SYNTH1)
+
+    def test_length_is_num_blobs(self):
+        self.assertEqual(11, len(self.ex))
+
+    def test_iter(self):
+        count = 0
+        for thing in self.ex:
+            count += 1
+        self.assertEqual(11, count)
+
+    def test_iter_blobs(self):
+        count = 0
+        for thing in self.ex.blobs():
+            count += 1
+        self.assertEqual(11, count)

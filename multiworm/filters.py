@@ -11,6 +11,7 @@ from six.moves import (zip, filter, map, reduce, input, range)
 
 import math
 
+
 def summary_lifetime_minimum(threshold):
     """
     Returns a function that filters summary blob data by a minimum time,
@@ -20,6 +21,7 @@ def summary_lifetime_minimum(threshold):
         lifetimes = summary_data['died_t'] - summary_data['born_t']
         return summary_data[lifetimes >= threshold]
     return f
+
 
 def exists_in_frame(frame):
     """
@@ -32,6 +34,7 @@ def exists_in_frame(frame):
         return summary_data[born_before & died_after]
     return f
 
+
 def exists_at_time(time):
     """
     Returns a function that filters summary blob data by requiring it to
@@ -42,6 +45,7 @@ def exists_at_time(time):
         died_after = summary_data['died_t'] >= time
         return summary_data[born_before & died_after]
     return f
+
 
 def _midline_length(points):
     """
@@ -54,6 +58,7 @@ def _midline_length(points):
         dist += math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
         a = b
     return dist
+
 
 def relative_move_minimum(threshold):
     """
@@ -72,7 +77,7 @@ def relative_move_minimum(threshold):
     return f
 
 
-def area_minimum(threshold):
+def area_minimum(threshold): # pragma: no cover # TODO
     """
     Returns a function that filters parsed blob data by a minimum ...
     """
@@ -81,7 +86,8 @@ def area_minimum(threshold):
 
     return f
 
-def aspect_ratio_minimum(threshold):
+
+def aspect_ratio_minimum(threshold): # pragma: no cover # TODO
     """
     Returns a function that filters parsed blob data by a minimum ...
     """

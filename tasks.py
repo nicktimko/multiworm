@@ -9,6 +9,7 @@ from invoke import task
 
 ROOT = os.path.abspath(os.path.dirname(__file__))
 
+
 def fileurl(path):
     path = os.path.abspath(path)
     return urllib.parse.urljoin('file:', urllib.request.pathname2url(path))
@@ -54,6 +55,13 @@ def test(ctx, coverage=False):
 
     if coverage:
         ctx.run('coverage xml')
+
+
+@task
+def report(ctx):
+    import webbrowser
+    ctx.run('coverage html')
+    webbrowser.open_new_tab(fileurl(os.path.join(ROOT, 'coverage_html_report', 'index.html')))
 
 
 @task
